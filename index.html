@@ -288,6 +288,7 @@ const I = {
   users: "M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75",
   clock: "M12 22c5.52 0 10-4.48 10-10S17.52 2 12 2 2 6.48 2 12s4.48 10 10 10zM12 6v6l4 2",
   cal:   "M3 4h18M3 8h18M3 12h18M3 16h18M3 20h10M16 3v18",
+  share: "M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13",
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -308,6 +309,14 @@ function dlTxt(name, content) {
   const a = document.createElement("a");
   a.href = u; a.download = name; a.click();
   URL.revokeObjectURL(u);
+}
+
+function doShare(title, text) {
+  if (navigator.share) {
+    navigator.share({ title: title, text: text }).catch(function() {});
+  } else {
+    navigator.clipboard.writeText(text).then(function() { toast("Kopiert! \u2713 (Teilen nicht verf\u00fcgbar)"); });
+  }
 }
 
 function fmtIng(i) {
@@ -431,8 +440,9 @@ function tplDetail() {
     + '<p class="section-label">Zutaten</p><ul class="ingredient-list">' + ingRows + '</ul>'
     + '<p class="section-label">Zubereitung</p><ol class="steps-list">' + stepRows + '</ol>'
     + '<div class="detail-actions">'
-    + '<button class="btn btn-primary" onclick="doCopyDetail()">' + svg(I.copy) + ' Einkaufsliste kopieren</button>'
+    + '<button class="btn btn-primary" onclick="doCopyDetail()">' + svg(I.copy) + ' Kopieren</button>'
     + '<button class="btn btn-secondary" onclick="doDlDetail()">' + svg(I.dl) + ' Als .txt</button>'
+    + '<button class="btn btn-secondary" onclick="doShareDetail()" style="background:#E8F5E2;color:#1B4332">' + svg(I.share) + ' In Bring teilen</button>'
     + '<button class="btn btn-secondary" onclick="doDetailToWeek()">' + svg(I.cal) + ' Zum Wochenplan</button>'
     + '</div></div>';
 }
@@ -492,9 +502,10 @@ function tplWeek() {
 
   let exportBtns = "";
   if (hasAny) {
-    exportBtns = '<div style="display:flex;gap:8px">'
+    exportBtns = '<div style="display:flex;gap:8px;flex-wrap:wrap">'
       + '<button class="btn btn-secondary btn-sm" onclick="doCopyWeek()">' + svg(I.copy, 14) + ' Kopieren</button>'
-      + '<button class="btn btn-primary btn-sm" onclick="doDlWeek()">' + svg(I.dl, 14) + ' Als .txt</button>'
+      + '<button class="btn btn-secondary btn-sm" onclick="doDlWeek()">' + svg(I.dl, 14) + ' Als .txt</button>'
+      + '<button class="btn btn-primary btn-sm" onclick="doShareWeek()">' + svg(I.share, 14) + ' In Bring teilen</button>'
       + '</div>';
   }
 
@@ -542,7 +553,8 @@ function tplShopping() {
     shopList = '<div class="shop-box"><p style="font-size:11px;font-weight:800;color:var(--green-darkest);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px">Zutaten (' + ings.length + ')</p>' + items + '</div>'
       + '<div style="display:flex;gap:10px;flex-wrap:wrap">'
       + '<button class="btn btn-secondary" onclick="doCopyShopping()">' + svg(I.copy) + ' Kopieren</button>'
-      + '<button class="btn btn-primary" onclick="doDlShopping()">' + svg(I.dl) + ' Als .txt</button>'
+      + '<button class="btn btn-secondary" onclick="doDlShopping()">' + svg(I.dl) + ' Als .txt</button>'
+      + '<button class="btn btn-primary" onclick="doShareShopping()">' + svg(I.share) + ' In Bring teilen</button>'
       + '</div>';
   }
   return '<h2 style="font-size:22px;font-weight:800;margin-bottom:8px">Einkaufsliste</h2>'
@@ -700,8 +712,10 @@ window.removeFromWeek = async function(day) {
 
 window.doCopyWeek    = function() { navigator.clipboard.writeText(weekExportText()).then(function() { toast("Kopiert! \u2713"); }); };
 window.doDlWeek      = function() { dlTxt("Wocheneinkaufsliste.txt", weekExportText()); };
+window.doShareWeek   = function() { doShare("Wocheneinkaufsliste", weekExportText()); };
 window.doCopyShopping = function() { navigator.clipboard.writeText(shopExportText()).then(function() { toast("Kopiert! \u2713"); }); };
 window.doDlShopping  = function() { dlTxt("Einkaufsliste.txt", shopExportText()); };
+window.doShareShopping = function() { doShare("Einkaufsliste", shopExportText()); };
 
 window.doCopyDetail = function() {
   const r = S.viewing; if (!r) return;
@@ -715,6 +729,13 @@ window.doDlDetail = function() {
   const ings = (r.ingredients || []).filter(function(i) { return i.name; });
   const txt = ["Einkaufsliste: " + r.name, ""].concat(ings.map(function(i) { return "- " + fmtIng(i); })).join("\n");
   dlTxt("Einkaufsliste_" + r.name.replace(/\s+/g, "_") + ".txt", txt);
+};
+
+window.doShareDetail = function() {
+  const r = S.viewing; if (!r) return;
+  const ings = (r.ingredients || []).filter(function(i) { return i.name; });
+  const txt = ["Einkaufsliste: " + r.name, ""].concat(ings.map(function(i) { return "- " + fmtIng(i); })).join("\n");
+  doShare("Einkaufsliste: " + r.name, txt);
 };
 
 window.doDetailToWeek = function() {
