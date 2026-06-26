@@ -327,13 +327,30 @@ module.exports = async function handler(req, res) {
       const food = searchData.foods[0];
       const nutrients = food.foodNutrients || [];
 
-      const get = (keyword) => {
+      const get = (keyword, unitCheck) => {
         const n = nutrients.find(x => x.nutrientName && x.nutrientName.toLowerCase().includes(keyword.toLowerCase()));
-        return n ? (n.value || 0) : 0;
+        if (!n) return 0;
+        // Energie kann in kJ oder kcal geliefert werden – prüfen und ggf. umrechnen
+        if (unitCheck === "energy") {
+          const unit = (n.nutrientNumber === "208") ? "kcal" : (n.unitName || "").toLowerCase();
+          if (unit === "kj" || unit === "kilojoules") return (n.value || 0) / 4.184;
+          return n.value || 0;
+        }
+        return n.value || 0;
       };
 
       const factor = grams / 100;
-      const kcal    = get("Energy") * factor;
+      // Nutrient 208 = Energy in kcal, Nutrient 268 = Energy in kJ
+      const energyNutrient = nutrients.find(x => x.nutrientNumber === "208") || nutrients.find(x => x.nutrientName && x.nutrientName.toLowerCase().includes("energy"));
+      let rawKcal = 0;
+      if (energyNutrient) {
+        const unitName = (energyNutrient.unitName || "").toLowerCase();
+        rawKcal = energyNutrient.value || 0;
+        if (unitName === "kj") rawKcal = rawKcal / 4.184;
+        // Sanity check: mehr als 900 kcal/100g ist unrealistisch (reines Fett hat ~900)
+        if (rawKcal > 900) rawKcal = rawKcal / 4.184;
+      }
+      const kcal = rawKcal * factor;
       const protein = get("Protein") * factor;
       const carbs   = get("Carbohydrate") * factor;
       const fat     = get("Total lipid") * factor;
