@@ -233,7 +233,7 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
-    <div class="bring-info">&#128274; Deine Zugangsdaten werden nur in deinem Browser gespeichert.</div>
+    <div class="bring-info">&#128274; Dein Passwort wird nicht gespeichert. Nach dem ersten Login wird nur ein tempor&auml;rer Token im Browser abgelegt.</div>
     <div class="bring-fields">
       <div class="field">
         <label>Bring E-Mail</label>
@@ -386,32 +386,96 @@ window.setNutritionTab = function(tab) { S.nutritionTab = tab; renderNutritionBo
 // ── Bring ──────────────────────────────────────────────────────────────────
 window.openBringModal = function(items) {
   S.bringItems = items || [];
-  var emailEl=document.getElementById("bring-email"); var pwEl=document.getElementById("bring-pw");
-  var hintEl=document.getElementById("bring-saved-hint"); var statusEl=document.getElementById("bring-status");
-  var saved=localStorage.getItem("bring_email");
-  emailEl.value = saved||""; hintEl.textContent = saved?"Gespeicherte E-Mail.":"";
-  pwEl.value = localStorage.getItem("bring_pw")||"";
-  statusEl.textContent=""; statusEl.className="bring-status";
+
+  // Wenn Token vorhanden: direkt exportieren ohne Modal
+  var savedToken = localStorage.getItem("bring_token");
+  var savedUuid  = localStorage.getItem("bring_uuid");
+  if (savedToken && savedUuid) {
+    exportToBring(null, null, savedToken, savedUuid);
+    return;
+  }
+
+  // Kein Token: Modal zeigen
+  var savedEmail = localStorage.getItem("bring_email");
+  document.getElementById("bring-email").value = savedEmail || "";
+  document.getElementById("bring-pw").value = "";
+  document.getElementById("bring-saved-hint").textContent = savedEmail ? "E-Mail gespeichert – bitte Passwort eingeben." : "";
+  document.getElementById("bring-status").textContent = "";
+  document.getElementById("bring-status").className = "bring-status";
   document.getElementById("bring-modal").classList.add("open");
 };
+
 window.closeBringModal = function() { document.getElementById("bring-modal").classList.remove("open"); };
 window.onBringModalBgClick = function(e) { if(e.target===document.getElementById("bring-modal")) window.closeBringModal(); };
-window.submitBring = async function() {
-  var email=document.getElementById("bring-email").value.trim();
-  var pw=document.getElementById("bring-pw").value;
-  var statusEl=document.getElementById("bring-status"); var btn=document.getElementById("bring-submit-btn");
-  if(!email||!pw){statusEl.textContent="Bitte E-Mail und Passwort eingeben.";statusEl.className="bring-status err";return;}
-  btn.disabled=true; statusEl.textContent="Verbinde\u2026"; statusEl.className="bring-status";
+
+async function exportToBring(email, password, token, uuid) {
+  var statusEl = document.getElementById("bring-status");
+  var btn = document.getElementById("bring-submit-btn");
+  if (btn) btn.disabled = true;
+  if (statusEl) { statusEl.textContent = "Exportiere nach Bring…"; statusEl.className = "bring-status"; }
+
   try {
-    var res=await fetch("/api/bring",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password:pw,items:S.bringItems})});
-    var data=await res.json();
-    if(!res.ok){statusEl.textContent=data.error||"Fehler.";statusEl.className="bring-status err";btn.disabled=false;return;}
-    localStorage.setItem("bring_email",email); localStorage.setItem("bring_pw",pw);
-    statusEl.textContent=data.count+" Zutaten hinzugef\u00fcgt! \u2713"; statusEl.className="bring-status ok";
-    btn.disabled=false; toast("\u2713 "+data.count+" Zutaten in Bring!");
-    setTimeout(function(){window.closeBringModal();},1800);
-  } catch(e) { statusEl.textContent="Fehler: "+e.message; statusEl.className="bring-status err"; btn.disabled=false; }
+    var body = { items: S.bringItems };
+    if (token && uuid) { body.token = token; body.uuid = uuid; }
+    if (email) body.email = email;
+    if (password) body.password = password;
+
+    var res = await fetch("/api/bring", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    var data = await res.json();
+
+    // Token abgelaufen
+    if (res.status === 401 && data.error === "token_expired") {
+      localStorage.removeItem("bring_token");
+      localStorage.removeItem("bring_uuid");
+      if (statusEl) { statusEl.textContent = ""; statusEl.className = "bring-status"; }
+      if (btn) btn.disabled = false;
+      document.getElementById("bring-email").value = localStorage.getItem("bring_email") || "";
+      document.getElementById("bring-pw").value = "";
+      document.getElementById("bring-saved-hint").textContent = "Sitzung abgelaufen – bitte erneut anmelden.";
+      document.getElementById("bring-modal").classList.add("open");
+      return;
+    }
+
+    if (!res.ok) {
+      if (statusEl) { statusEl.textContent = data.error || "Fehler."; statusEl.className = "bring-status err"; }
+      if (btn) btn.disabled = false;
+      return;
+    }
+
+    // Neuen Token speichern falls frisch eingeloggt
+    if (data.token) {
+      localStorage.setItem("bring_token", data.token);
+      localStorage.setItem("bring_uuid", data.uuid);
+    }
+    if (email) localStorage.setItem("bring_email", email);
+    localStorage.removeItem("bring_pw"); // Passwort nie dauerhaft speichern
+
+    if (btn) btn.disabled = false;
+    toast("✓ " + data.count + " Zutaten in Bring!");
+    window.closeBringModal();
+
+  } catch(e) {
+    if (statusEl) { statusEl.textContent = "Fehler: " + e.message; statusEl.className = "bring-status err"; }
+    if (btn) btn.disabled = false;
+  }
+}
+
+window.submitBring = async function() {
+  var email = document.getElementById("bring-email").value.trim();
+  var pw    = document.getElementById("bring-pw").value;
+  var statusEl = document.getElementById("bring-status");
+  if (!email || !pw) {
+    statusEl.textContent = "Bitte E-Mail und Passwort eingeben.";
+    statusEl.className = "bring-status err";
+    return;
+  }
+  await exportToBring(email, pw, null, null);
 };
+
 
 // ── Tab ────────────────────────────────────────────────────────────────────
 window.switchTab = function(tab) {
