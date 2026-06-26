@@ -96,7 +96,8 @@
     .form-section { margin-top: 24px; }
     .form-section-hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
     .form-section-label { font-size: 11px; font-weight: 800; color: var(--green-darkest); text-transform: uppercase; letter-spacing: 1px; }
-    .ing-row { display: grid; grid-template-columns: 80px 72px 1fr 32px; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .ing-row { display: grid; grid-template-columns: 72px 90px 1fr 32px; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .unit-sel { appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236B7280'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; padding-right: 22px !important; cursor: pointer; }
     .step-row { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
     .step-row-num { min-width: 30px; height: 30px; border-radius: 50%; background: var(--green-dark); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; flex-shrink: 0; margin-top: 6px; }
     .form-footer { display: flex; gap: 10px; justify-content: flex-end; padding-top: 20px; border-top: 1.5px solid var(--green-faint); margin-top: 24px; }
@@ -165,7 +166,7 @@
     @media (max-width: 540px) {
       .form-grid { grid-template-columns: 1fr; }
       .combined-items { columns: 1; }
-      .ing-row { grid-template-columns: 65px 58px 1fr 28px; }
+      .ing-row { grid-template-columns: 60px 80px 1fr 28px; }
       .logo-text { display: none; }
       .nutrition-grid { grid-template-columns: repeat(2, 1fr); }
     }
@@ -504,7 +505,7 @@ function tplForm() {
   (r.ingredients||[]).forEach(function(ing){
     ingRows+='<div class="ing-row" data-ing="'+ing.id+'">'
       +'<input class="inp inp-sm" data-f="amount" value="'+esc(ing.amount)+'" placeholder="Menge" />'
-      +'<input class="inp inp-sm" data-f="unit" value="'+esc(ing.unit)+'" placeholder="Einheit" />'
+      +buildUnitSelect(ing.unit)
       +'<input class="inp inp-sm" data-f="name" value="'+esc(ing.name)+'" placeholder="Zutat" />'
       +'<button class="remove-btn" onclick="removeIng(\''+ing.id+'\')">'+svg(I.x,14)+'</button></div>';
   });
@@ -625,7 +626,7 @@ window.doSearch=function(q){S.search=q;render();};
 window.doEdit=function(id){S.editing=S.recipes.find(function(r){return r.id===id;});S.view="form";render();};
 window.doView=function(id){S.viewing=S.recipes.find(function(r){return r.id===id;});S.nutrition=null;S.view="detail";render();};
 window.doDelete=async function(id){if(!confirm("Rezept wirklich l\u00f6schen?")) return; await fbDeleteRecipe(id); toast("Rezept gel\u00f6scht.");};
-window.addIng=function(){ var el=document.getElementById("ing-list"); var id=uid(); var div=document.createElement("div"); div.className="ing-row"; div.dataset.ing=id; div.innerHTML='<input class="inp inp-sm" data-f="amount" placeholder="Menge" /><input class="inp inp-sm" data-f="unit" placeholder="Einheit" /><input class="inp inp-sm" data-f="name" placeholder="Zutat" /><button class="remove-btn" onclick="removeIng(\''+id+'\')">'+svg(I.x,14)+'</button>'; el.appendChild(div); };
+window.addIng=function(){ var el=document.getElementById("ing-list"); var id=uid(); var div=document.createElement("div"); div.className="ing-row"; div.dataset.ing=id; div.innerHTML='<input class="inp inp-sm" data-f="amount" placeholder="Menge" />'+buildUnitSelect('')+'<input class="inp inp-sm" data-f="name" placeholder="Zutat" /><button class="remove-btn" onclick="removeIng(\''+id+'\')">'+svg(I.x,14)+'</button>'; el.appendChild(div); };
 window.removeIng=function(id){var el=document.querySelector('[data-ing="'+id+'"]'); if(el&&document.querySelectorAll("[data-ing]").length>1) el.remove();};
 window.addStep=function(){ var el=document.getElementById("step-list"); var id=uid(); var n=el.children.length+1; var div=document.createElement("div"); div.className="step-row"; div.dataset.step=id; div.innerHTML='<div class="step-row-num">'+n+'</div><textarea class="inp" rows="2" data-f="text" placeholder="Schritt '+n+'\u2026" style="flex:1;resize:vertical"></textarea><button class="remove-btn" onclick="removeStep(\''+id+'\')" style="margin-top:6px">'+svg(I.x,14)+'</button>'; el.appendChild(div); };
 window.removeStep=function(id){var el=document.querySelector('[data-step="'+id+'"]'); if(el&&document.querySelectorAll("[data-step]").length>1) el.remove();};
@@ -650,6 +651,18 @@ window.doDlDetail=function(){ var r=S.viewing; if(!r) return; var ings=(r.ingred
 window.doDetailToWeek=function(){if(!S.viewing) return; openDayModal(S.viewing.id);};
 window.toggleShopR=function(id){var idx=S.shopSelected.indexOf(id); if(idx>=0){S.shopSelected.splice(idx,1);}else{S.shopSelected.push(id);} render();};
 window.toggleShopI=function(key){S.shopChecked[key]=!S.shopChecked[key]; render();};
+
+// ── Unit dropdown helper ──────────────────────────────────────────────────
+function buildUnitSelect(selected) {
+  var units = ["", "g", "kg", "ml", "l", "EL", "TL", "Tasse", "Stk", "Scheibe", "Prise", "Zehe"];
+  var labels = {"": "–", "g": "g", "kg": "kg", "ml": "ml", "l": "l", "EL": "EL", "TL": "TL", "Tasse": "Tasse", "Stk": "Stk", "Scheibe": "Scheibe", "Prise": "Prise", "Zehe": "Zehe"};
+  var html = '<select class="inp inp-sm unit-sel" data-f="unit">';
+  units.forEach(function(u) {
+    html += '<option value="' + u + '"' + (u === selected ? ' selected' : '') + '>' + labels[u] + '</option>';
+  });
+  html += '</select>';
+  return html;
+}
 
 render();
 </script>
