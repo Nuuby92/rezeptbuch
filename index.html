@@ -327,8 +327,28 @@ function mergeIngredients(recipeList) {
   recipeList.forEach(function(r){(r.ingredients||[]).filter(function(i){return i.name;}).forEach(function(ing){var key=ing.name.toLowerCase()+"__"+(ing.unit||"");if(map[key]){var a=parseFloat(map[key].amount)||0;var b=parseFloat(ing.amount)||0;map[key]=Object.assign({},map[key],{amount:(a+b)?String(a+b):""});}else{map[key]=Object.assign({},ing);}});});
   return Object.values(map);
 }
-function shopExportText() { var sel=S.recipes.filter(function(r){return S.shopSelected.indexOf(r.id)>=0;}); var names=sel.map(function(r){return r.name;}).join(", "); var ings=mergeIngredients(sel); return ["Einkaufsliste fuer: "+names,""].concat(ings.map(function(i){return "- "+fmtIng(i);})).join("\n"); }
-function weekExportText() { var planned=DAYS.filter(function(d){return S.weekPlan[d];}); var rList=planned.map(function(d){return S.weekPlan[d];}); var ings=mergeIngredients(rList); var lines=["Wocheneinkaufsliste",""]; planned.forEach(function(d){lines.push(d+": "+S.weekPlan[d].name);}); lines.push("","---","Zutaten:",""); ings.forEach(function(i){lines.push("- "+fmtIng(i));}); return lines.join("\n"); }
+function shopExportText() {
+  var entries = getWeekEntries();
+  var names = entries.map(function(e) { return e.recipe.name + " (" + e.portions + "x)"; }).join(", ");
+  var ings = mergeWeekIngredients();
+  return ["Einkaufsliste fuer: " + names, ""].concat(ings.map(function(i) { return "- " + fmtIng(i); })).join("\n");
+}
+function weekExportText() {
+  var entries = getWeekEntries();
+  var ings = mergeWeekIngredients();
+  var lines = ["Wocheneinkaufsliste", ""];
+  DAYS.forEach(function(d) {
+    if (S.weekPlan[d]) {
+      var entry = S.weekPlan[d];
+      var r = entry.recipe || entry;
+      var portions = entry.portions || parseInt((r||{}).servings) || 1;
+      lines.push(d + ": " + r.name + " (" + portions + " Portion" + (portions > 1 ? "en" : "") + ")");
+    }
+  });
+  lines.push("", "---", "Zutaten:", "");
+  ings.forEach(function(i) { lines.push("- " + fmtIng(i)); });
+  return lines.join("\n");
+}
 
 // ── Nährwerte ──────────────────────────────────────────────────────────────
 async function loadNutrition(recipe) {
@@ -593,69 +613,127 @@ function tplForm() {
     +'<div class="form-footer"><button class="btn btn-secondary" onclick="doBack()">Abbrechen</button><button class="btn btn-primary" onclick="doSave(\''+eid+'\')">'+svg(I.check)+' Speichern</button></div></div>';
 }
 
-function tplWeek() {
-  var planned=DAYS.filter(function(d){return S.weekPlan[d];}); var hasAny=planned.length>0;
-  var rows="";
-  DAYS.forEach(function(day){
-    var r=S.weekPlan[day];
-    rows+='<div class="week-row"><span class="week-day">'+day+'</span>';
-    if(r){ rows+='<div class="week-tag">'+esc(r.name)+'<button style="background:none;border:none;cursor:pointer;color:#6B7280;display:flex;padding:2px" onclick="removeFromWeek(\''+day+'\')">'+svg(I.x,14)+'</button></div>'; }
-    else { rows+='<button class="week-empty" onclick="openWeekModal(\''+day+'\')">+ Rezept ausw&auml;hlen&hellip;</button>'; }
-    rows+='</div>';
+function getWeekEntries() {
+  return DAYS.filter(function(d) { return S.weekPlan[d]; }).map(function(d) {
+    var entry = S.weekPlan[d];
+    if (entry && entry.recipe) return entry;
+    return { recipe: entry, portions: parseInt((entry||{}).servings) || 1 };
   });
-  var exportBtns="";
-  if(hasAny){
-    var weekIngs=mergeIngredients(planned.map(function(d){return S.weekPlan[d];}));
-    var weekBringItems=JSON.stringify(weekIngs.map(function(i){return {name:i.name,amount:[i.amount,i.unit].filter(Boolean).join(" ")};}));
-    exportBtns='<div style="display:flex;gap:8px;flex-wrap:wrap">'
-      +'<button class="btn btn-secondary btn-sm" onclick="doCopyWeek()">'+svg(I.copy,14)+' Kopieren</button>'
-      +'<button class="btn btn-secondary btn-sm" onclick="doDlWeek()">'+svg(I.dl,14)+' Als .txt</button>'
-      +'<button class="btn btn-bring btn-sm" onclick="openBringModal('+esc(weekBringItems)+')">&#127819; Nach Bring</button>'
-      +'</div>';
-  }
-  var combined="";
-  if(hasAny){
-    var rList=planned.map(function(d){return S.weekPlan[d];}); var ings=mergeIngredients(rList); var items="";
-    ings.forEach(function(i){items+='<div class="combined-item"><span style="color:var(--green-mid)">&#8226;</span><span>'+esc(fmtIng(i))+'</span></div>';});
-    combined='<div class="combined-box"><h3>Kombinierte Einkaufsliste ('+planned.length+' Rezepte)</h3><div class="combined-items">'+items+'</div></div>';
-  }
-  return '<div class="section-hd"><h2>Wochenplan</h2>'+exportBtns+'</div><div class="week-grid">'+rows+'</div>'+combined;
 }
 
+function mergeWeekIngredients() {
+  var map = {};
+  getWeekEntries().forEach(function(entry) {
+    var r = entry.recipe;
+    var basePortion = parseInt(r.servings) || 1;
+    var scale = entry.portions / basePortion;
+    (r.ingredients || []).filter(function(i) { return i.name; }).forEach(function(ing) {
+      var key = ing.name.toLowerCase() + "__" + (ing.unit || "");
+      var rawAmt = parseFloat(ing.amount) || 0;
+      var scaled = rawAmt * scale;
+      var displayAmt = scaled ? (scaled % 1 === 0 ? String(scaled) : scaled.toFixed(1).replace(/\.0$/, "")) : "";
+      if (map[key]) {
+        var ex = parseFloat(map[key].amount) || 0;
+        var total = ex + scaled;
+        map[key] = Object.assign({}, map[key], { amount: total % 1 === 0 ? String(total) : total.toFixed(1).replace(/\.0$/, "") });
+      } else {
+        map[key] = Object.assign({}, ing, { amount: displayAmt });
+      }
+    });
+  });
+  return Object.values(map);
+}
+
+function tplWeek() {
+  var entries = getWeekEntries();
+  var hasAny = entries.length > 0;
+  var rows = "";
+  DAYS.forEach(function(day) {
+    var entry = S.weekPlan[day];
+    var r = entry ? (entry.recipe || entry) : null;
+    var portions = entry ? (entry.portions || parseInt((r||{}).servings) || 1) : 1;
+    rows += '<div class="week-row"><span class="week-day">' + day + '</span>';
+    if (r) {
+      rows += '<div class="week-tag">' + esc(r.name) + '</div>';
+      rows += '<select class="inp inp-sm" style="width:auto;padding:4px 8px" onchange="setWeekPortions('' + day + '',this.value)">';
+      for (var p = 1; p <= 12; p++) {
+        rows += '<option value="' + p + '"' + (p === portions ? ' selected' : '') + '>' + p + ' Portion' + (p > 1 ? 'en' : '') + '</option>';
+      }
+      rows += '</select>';
+      rows += '<button style="background:none;border:none;cursor:pointer;color:#9CA3AF;display:flex;padding:4px" onclick="removeFromWeek('' + day + '')">' + svg(I.x, 14) + '</button>';
+    } else {
+      rows += '<button class="week-empty" onclick="openWeekModal('' + day + '')">+ Rezept ausw&auml;hlen&hellip;</button>';
+    }
+    rows += '</div>';
+  });
+
+  var exportBtns = "";
+  if (hasAny) {
+    var weekIngs = mergeWeekIngredients();
+    var weekBringItems = JSON.stringify(weekIngs.map(function(i) { return { name: i.name, amount: [i.amount, i.unit].filter(Boolean).join(" ") }; }));
+    exportBtns = '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+      + '<button class="btn btn-secondary btn-sm" onclick="doCopyWeek()">' + svg(I.copy, 14) + ' Kopieren</button>'
+      + '<button class="btn btn-secondary btn-sm" onclick="doDlWeek()">' + svg(I.dl, 14) + ' Als .txt</button>'
+      + '<button class="btn btn-bring btn-sm" onclick="openBringModal(' + esc(weekBringItems) + ')">&#127819; Nach Bring</button>'
+      + '</div>';
+  }
+
+  var combined = "";
+  if (hasAny) {
+    var ings = mergeWeekIngredients();
+    var items = "";
+    ings.forEach(function(i) { items += '<div class="combined-item"><span style="color:var(--green-mid)">&#8226;</span><span>' + esc(fmtIng(i)) + '</span></div>'; });
+    combined = '<div class="combined-box"><h3>Einkaufsliste f&uuml;r diese Woche</h3><div class="combined-items">' + items + '</div></div>';
+  }
+
+  return '<div class="section-hd"><h2>Wochenplan</h2>' + exportBtns + '</div><div class="week-grid">' + rows + '</div>' + combined;
+}
 function tplShopping() {
-  var sel=S.recipes.filter(function(r){return S.shopSelected.indexOf(r.id)>=0;}); var ings=mergeIngredients(sel);
-  var selItems="";
-  if(S.recipes.length===0){ selItems='<p style="color:var(--text-muted);font-size:14px">Noch keine Rezepte vorhanden.</p>'; }
-  else {
-    S.recipes.forEach(function(r){
-      var on=S.shopSelected.indexOf(r.id)>=0;
-      selItems+='<div class="sel-item'+(on?" selected":"") + '" onclick="toggleShopR(\''+r.id+'\')">'
-        +'<div class="chk'+(on?" on":"")+'">'+(on?svg(I.check,11):"")+'</div>'
-        +'<span style="font-weight:600;font-size:15px">'+esc(r.name)+'</span>'
-        +(r.prepTime?'<span style="font-size:12px;color:var(--text-muted);margin-left:auto">'+esc(r.prepTime)+'</span>':"")
-        +'</div>';
-    });
-  }
-  var shopList="";
-  if(ings.length>0){
-    var shopBringItems=JSON.stringify(ings.map(function(i){return {name:i.name,amount:[i.amount,i.unit].filter(Boolean).join(" ")};}));
-    var items="";
-    ings.forEach(function(i){
-      var key=i.name+"__"+(i.unit||""); var done=!!S.shopChecked[key];
-      items+='<div class="shop-item'+(done?" done":"")+'" onclick="toggleShopI(\''+key.replace(/\\/g,"\\\\").replace(/'/g,"\\'")+'\')"><div class="chk'+(done?" on":"")+'">'+(done?svg(I.check,11):"")+' </div><span>'+esc(fmtIng(i))+'</span></div>';
-    });
-    shopList='<div class="shop-box"><p style="font-size:11px;font-weight:800;color:var(--green-darkest);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px">Zutaten ('+ings.length+')</p>'+items+'</div>'
-      +'<div style="display:flex;gap:10px;flex-wrap:wrap">'
-      +'<button class="btn btn-secondary" onclick="doCopyShopping()">'+svg(I.copy)+' Kopieren</button>'
-      +'<button class="btn btn-secondary" onclick="doDlShopping()">'+svg(I.dl)+' Als .txt</button>'
-      +'<button class="btn btn-bring" onclick="openBringModal('+esc(shopBringItems)+')">&#127819; Nach Bring</button>'
-      +'</div>';
-  }
-  return '<h2 style="font-size:22px;font-weight:800;margin-bottom:8px">Einkaufsliste</h2>'
-    +'<p style="font-size:14px;color:var(--text-muted);margin-bottom:18px">W&auml;hle Rezepte aus, um eine kombinierte Einkaufsliste zu erstellen.</p>'
-    +'<div class="sel-list">'+selItems+'</div>'+shopList;
-}
+  var entries = getWeekEntries();
+  var ings = mergeWeekIngredients();
 
+  if (entries.length === 0) {
+    return '<h2 style="font-size:22px;font-weight:800;margin-bottom:16px">Einkaufsliste</h2>'
+      + '<div class="empty"><div class="empty-icon">&#128722;</div>'
+      + '<h3>Noch kein Wochenplan</h3>'
+      + '<p>F&uuml;ge zuerst Rezepte zum <span style="color:var(--green-dark);cursor:pointer;text-decoration:underline" onclick="switchTab('week')">Wochenplan</span> hinzu.</p></div>';
+  }
+
+  var recipeList = '<div style="margin-bottom:20px">'
+    + '<p style="font-size:11px;font-weight:800;color:var(--green-darkest);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Diese Woche geplant</p>';
+  entries.forEach(function(entry) {
+    var r = entry.recipe;
+    recipeList += '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border-radius:10px;border:1.5px solid #E4F2E1;margin-bottom:6px">'
+      + '<span style="font-weight:600;font-size:14px">' + esc(r.name) + '</span>'
+      + '<span style="font-size:12px;color:var(--text-muted);margin-left:auto">' + entry.portions + ' Portion' + (entry.portions > 1 ? 'en' : '') + '</span>'
+      + '</div>';
+  });
+  recipeList += '</div>';
+
+  var shopList = "";
+  if (ings.length > 0) {
+    var shopBringItems = JSON.stringify(ings.map(function(i) { return { name: i.name, amount: [i.amount, i.unit].filter(Boolean).join(" ") }; }));
+    var items = "";
+    ings.forEach(function(i) {
+      var key = i.name + "__" + (i.unit || "");
+      var safeKey = key.replace(/\/g, "\\").replace(/'/g, "\'");
+      var done = !!S.shopChecked[key];
+      items += '<div class="shop-item' + (done ? ' done' : '') + '" onclick="toggleShopI('' + safeKey + '')">'
+        + '<div class="chk' + (done ? ' on' : '') + '">' + (done ? svg(I.check, 11) : '') + '</div>'
+        + '<span>' + esc(fmtIng(i)) + '</span></div>';
+    });
+    shopList = '<div class="shop-box"><p style="font-size:11px;font-weight:800;color:var(--green-darkest);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px">Zutaten (' + ings.length + ')</p>' + items + '</div>'
+      + '<div style="display:flex;gap:10px;flex-wrap:wrap">'
+      + '<button class="btn btn-secondary" onclick="doCopyShopping()">' + svg(I.copy) + ' Kopieren</button>'
+      + '<button class="btn btn-secondary" onclick="doDlShopping()">' + svg(I.dl) + ' Als .txt</button>'
+      + '<button class="btn btn-bring" onclick="openBringModal(' + esc(shopBringItems) + ')">&#127819; Nach Bring</button>'
+      + '</div>';
+  }
+
+  return '<h2 style="font-size:22px;font-weight:800;margin-bottom:8px">Einkaufsliste</h2>'
+    + '<p style="font-size:14px;color:var(--text-muted);margin-bottom:18px">Basierend auf deinem Wochenplan &ndash; Zutaten werden automatisch kombiniert und skaliert.</p>'
+    + recipeList + shopList;
+}
 // ── Modal ──────────────────────────────────────────────────────────────────
 function openWeekModal(day) { S.modalMode="week"; S.modalDay=day; document.getElementById("modal-title").textContent=day; document.getElementById("modal-search").style.display=""; document.getElementById("modal-search").value=""; document.getElementById("modal").classList.add("open"); renderModalList(""); }
 window.openWeekModal=openWeekModal;
