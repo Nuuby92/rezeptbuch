@@ -1,4 +1,4 @@
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -12,7 +12,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "email, password und items erforderlich" });
     }
 
-    // Login
     const loginRes = await fetch("https://api.getbring.com/rest/v2/bringauth", {
       method: "POST",
       headers: {
@@ -35,7 +34,6 @@ export default async function handler(req, res) {
     const token = loginData.access_token;
     const uuid = loginData.uuid;
 
-    // Listen laden – andere URL als vorher
     const listsRes = await fetch("https://api.getbring.com/rest/v2/bringusers/" + uuid + "/lists", {
       headers: {
         "Authorization": "Bearer " + token,
@@ -56,8 +54,6 @@ export default async function handler(req, res) {
     }
 
     const listUuid = listsData.lists[0].listUuid;
-
-    // Zutaten hinzufügen
     let count = 0;
     for (const item of items) {
       if (!item.name) continue;
