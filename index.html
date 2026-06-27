@@ -452,8 +452,32 @@ window.switchTab = function(tab) {
   render();
 };
 
+// ── Browser history ────────────────────────────────────────────────────────
+function pushState() {
+  var state = { tab: S.tab, view: S.view, viewingId: S.viewing ? S.viewing.id : null };
+  var url = "?tab=" + S.tab + (S.view !== "list" ? "&view=" + S.view : "") + (S.viewing ? "&id=" + S.viewing.id : "");
+  history.pushState(state, "", url);
+}
+
+window.addEventListener("popstate", function(e) {
+  if (!e.state) return;
+  S.tab = e.state.tab || "recipes";
+  S.view = e.state.view || "list";
+  S.nutrition = null;
+  if (e.state.viewingId) {
+    S.viewing = S.recipes.find(function(r) { return r.id === e.state.viewingId; }) || null;
+  } else {
+    S.viewing = null;
+  }
+  S.editing = null;
+  ["recipes","week","shopping"].forEach(function(t) {
+    document.getElementById("nav-" + t).classList.toggle("active", t === S.tab);
+  });
+  renderOnly();
+});
+
 // ── Render ─────────────────────────────────────────────────────────────────
-function render() {
+function renderOnly() {
   document.getElementById("loading").style.display = "none";
   document.getElementById("app").style.display = "flex";
   var el = document.getElementById("content");
@@ -466,6 +490,11 @@ function render() {
   } else {
     el.innerHTML = tplShopping();
   }
+}
+
+function render() {
+  renderOnly();
+  pushState();
 }
 
 // ── Recipe list ────────────────────────────────────────────────────────────
@@ -769,6 +798,8 @@ window.doDlDetail = function() {
 window.doDetailToWeek = function() { if(!S.viewing) return; openDayModal(S.viewing.id); };
 window.toggleShopI = function(key) { S.shopChecked[key]=!S.shopChecked[key]; render(); };
 
+// Set initial history state
+history.replaceState({ tab: 'recipes', view: 'list', viewingId: null }, '', '?tab=recipes');
 render();
 </script>
 </body>
