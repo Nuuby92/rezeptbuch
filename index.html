@@ -670,7 +670,8 @@ function tplList() {
     });
   }
   return '<div class="section-hd"><h2>Rezepte <span style="color:var(--text-muted);font-weight:400;font-size:16px">(' + S.recipes.length + ')</span></h2>'
-    + '<button class="btn btn-primary" onclick="doNew()">' + svg(I.plus) + ' Neues Rezept</button></div>'
+    + '<div style="display:flex;gap:8px"><button class="btn btn-secondary" onclick="openImportModal()">&#128203; Importieren</button>'
+    + '<button class="btn btn-primary" onclick="doNew()">' + svg(I.plus) + ' Neues Rezept</button></div></div>'
     + '<div class="search-wrap"><span class="search-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>'
     + '<input class="search-input" placeholder="Rezepte durchsuchen\u2026" value="' + esc(S.search) + '" oninput="doSearch(this.value)" /></div>'
     + '<div class="recipe-grid">' + cards + '</div>';
