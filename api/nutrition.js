@@ -145,6 +145,7 @@ module.exports = async function handler(req, res) {
     "gyoza": "dumpling wrapper", "gyoza-teigblatter": "dumpling wrapper",
     "wonton wrapper": "dumpling wrapper", "wonton wrappers": "dumpling wrapper",
     "chili-ol": "chili oil", "chiliöl": "chili oil", "chili-öl": "chili oil",
+    "chili crisp": "chili oil", "chili crunch": "chili oil",
     "sesamol": "sesame oil", "sesamöl": "sesame oil",
     "reisessig": "rice vinegar", "austernsosse": "oyster sauce", "austernsoße": "oyster sauce",
     "mirin": "mirin", "dashi": "dashi", "panko": "breadcrumbs panko",
@@ -178,6 +179,9 @@ module.exports = async function handler(req, res) {
     "braune", "brauner", "braunes",
     "bio", "tiefgekühlte", "tiefgekühlt",
     "dose", "dosen", "frisch gepresster", "frisch gepresst",
+    "dünn geschnitten", "dinn geschnitten", "fein gehackt", "grob gehackt",
+    "gerieben", "gehackt", "geschnitten", "gewürfelt", "gepresst",
+    "zum servieren", "nach geschmack", "nach belieben",
   ];
 
   // ── Typische Stückgewichte in Gramm ──────────────────────────────────────
@@ -203,6 +207,8 @@ module.exports = async function handler(req, res) {
     "peperoni": 20, "chilischote": 15,
     "lorbeerblatt": 1, "lorbeerblätter": 1,
     "scheibe toast": 30, "scheibe brot": 35,
+    "dumpling wrapper": 20, "dumpling wrappers": 20,
+    "gyoza": 20, "wonton wrapper": 20, "wonton wrappers": 20,
   };
 
   // ── Feste Nährwerte pro 100g für Lebensmittel die USDA falsch trifft ────────
@@ -238,6 +244,8 @@ module.exports = async function handler(req, res) {
     "white wine":       { kcal: 82,  protein: 0.1, carbs: 2.6,  fat: 0.0 },
     "dumpling wrapper":  { kcal: 290, protein: 7.8, carbs: 58.0, fat: 1.5 },
     "chili oil":         { kcal: 820, protein: 0.0, carbs: 0.0,  fat: 92.0 },
+    "chili crisp":       { kcal: 600, protein: 5.0, carbs: 15.0, fat: 55.0 },
+    "chili crunch":      { kcal: 600, protein: 5.0, carbs: 15.0, fat: 55.0 },
     "sesame oil":        { kcal: 884, protein: 0.0, carbs: 0.0,  fat: 100.0 },
     "rice vinegar":      { kcal: 18,  protein: 0.0, carbs: 0.0,  fat: 0.0 },
     "oyster sauce":      { kcal: 100, protein: 2.5, carbs: 22.0, fat: 0.3 },
