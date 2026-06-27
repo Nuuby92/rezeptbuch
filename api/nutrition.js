@@ -88,6 +88,7 @@ module.exports = async function handler(req, res) {
     "spargel": "asparagus raw", "rote bete": "beets raw",
     "fenchel": "fennel raw", "kohlrabi": "kohlrabi raw",
     "frühlingszwiebeln": "green onions raw", "fruhlingszwiebeln": "green onions raw", "frühlingszwiebel": "green onions raw",
+    "grüne zwiebeln": "green onions raw", "grune zwiebeln": "green onions raw", "green onions": "green onions raw", "frühlingszwiebeln dünn geschnitten": "green onions raw",
     "apfel": "apple raw", "äpfel": "apple raw",
     "birne": "pear raw", "banane": "banana raw", "bananen": "banana raw",
     "orange": "orange raw", "zitrone": "lemon raw",
