@@ -253,6 +253,21 @@ module.exports = async function handler(req, res) {
     "sriracha sauce":    { kcal: 93,  protein: 2.0, carbs: 18.0, fat: 2.0 },
     "breadcrumbs panko": { kcal: 350, protein: 12.0,carbs: 73.0, fat: 2.0 },
     "kimchi":            { kcal: 15,  protein: 1.1, carbs: 2.4,  fat: 0.5 },
+    // Fleisch – Durchschnittswerte (mittlerer Fettgehalt)
+    "pork ground raw":       { kcal: 263, protein: 17.0, carbs: 0.0,  fat: 21.0 },
+    "beef ground raw":       { kcal: 254, protein: 17.0, carbs: 0.0,  fat: 20.0 },
+    "chicken breast raw":    { kcal: 120, protein: 22.0, carbs: 0.0,  fat: 2.6  },
+    "turkey breast raw":     { kcal: 104, protein: 22.0, carbs: 0.0,  fat: 1.7  },
+    "lamb raw":              { kcal: 282, protein: 16.0, carbs: 0.0,  fat: 24.0 },
+    "pork raw":              { kcal: 242, protein: 16.0, carbs: 0.0,  fat: 19.0 },
+    "pork tenderloin raw":   { kcal: 143, protein: 21.0, carbs: 0.0,  fat: 5.9  },
+    "pork belly raw":        { kcal: 518, protein: 9.0,  carbs: 0.0,  fat: 53.0 },
+    "bacon raw":             { kcal: 458, protein: 12.0, carbs: 1.0,  fat: 45.0 },
+    "ham cooked":            { kcal: 145, protein: 21.0, carbs: 1.5,  fat: 5.5  },
+    "salmon raw":            { kcal: 208, protein: 20.0, carbs: 0.0,  fat: 13.0 },
+    "cod raw":               { kcal: 82,  protein: 18.0, carbs: 0.0,  fat: 0.7  },
+    "shrimp raw":            { kcal: 99,  protein: 19.0, carbs: 0.9,  fat: 1.4  },
+    "tuna canned in water":  { kcal: 116, protein: 26.0, carbs: 0.0,  fat: 1.0  },
     // Kokosmilch – volle Dose, nicht Kokosdrink
     "coconut milk canned": { kcal: 197, protein: 2.0, carbs: 2.8,  fat: 21.3 },
     // Kichererbsen aus Dose (abgetropft)
