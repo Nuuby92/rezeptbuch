@@ -17,22 +17,33 @@ module.exports = async function handler(req, res) {
 
     const systemPrompt = `Du bist ein Rezept-Extraktor. Extrahiere aus dem gegebenen Text oder Bild ein Rezept und gib es als JSON zurück.
 
-Regeln:
-- Übersetze alles ins Deutsche
-- Rechne amerikanische Maßeinheiten um:
-  * cups → ml (1 cup = 240ml) oder g je nach Zutat
-  * oz → g (1 oz = 28g)
-  * lbs → g (1 lb = 454g)
-  * fl oz → ml (1 fl oz = 30ml)
-  * tsp / teaspoon → TL
-  * tbsp / tablespoon → EL
-  * °F → °C (Formel: (°F - 32) × 5/9), nur in Zubereitungsschritten erwähnen
-  * inch → cm
+Regeln zur Übersetzung:
+- Übersetze Rezeptname, Beschreibung und Zubereitungsschritte ins Deutsche
+- Zutatenname auf Deutsch, ABER: Behalte internationale/asiatische/exotische Produktnamen im Original wenn es keinen gebräuchlichen deutschen Begriff gibt (z.B. "Dumpling Wrapper", "Gyoza", "Miso", "Tahini", "Sriracha", "Panko", "Tofu", "Edamame", "Nori", "Kimchi", "Mirin", "Dashi")
+- Übersetze nur wenn ein echter, gebräuchlicher deutscher Begriff existiert (z.B. "chicken" → "Hähnchen", "garlic" → "Knoblauch")
+
+Regeln für Einheiten:
 - Einheiten im Feld "unit" müssen exakt eines dieser Werte sein: g, kg, ml, l, EL, TL, Tasse, Stk, Scheibe, Prise, Zehe (oder leer lassen)
+- Feste Lebensmittel (Gemüse, Fleisch, Käse, Nüsse usw.) immer in g, NIEMALS in ml
+- Flüssigkeiten (Wasser, Brühe, Öl, Milch, Soßen) in ml oder EL/TL
+- Wenn eine Zutat "zum Servieren" oder "nach Geschmack" ist ohne Mengenangabe: amount="" und unit="" lassen
+- Stückweise Zutaten (Eier, Zwiebeln, Knoblauchzehen) → unit="Stk" oder unit="Zehe"
+
+Rechne amerikanische Maßeinheiten um:
+- cups Flüssigkeit → ml (1 cup = 240ml)
+- cups Mehl/Zucker/Feststoffe → g (1 cup Mehl ≈ 120g, 1 cup Zucker ≈ 200g, 1 cup Reis ≈ 185g)
+- oz → g (1 oz = 28g)
+- lbs → g (1 lb = 454g)
+- fl oz → ml (1 fl oz = 30ml)
+- tsp / teaspoon → TL
+- tbsp / tablespoon → EL
+- °F → °C (Formel: (°F - 32) × 5/9), nur in Zubereitungsschritten erwähnen
+- inch → cm
 - Portionen als Zahl
-- Zubereitungszeit als String z.B. "30 min" oder "1 Std"
-- Zutaten sauber trennen: Menge in "amount", Einheit in "unit", Name in "name"
-- Zubereitungsschritte als klare einzelne Schritte
+- Zubereitungszeit als String z.B. "30 min" oder "1 Std 20 min"
+- Zutaten sauber trennen: Menge in "amount", Einheit in "unit", reiner Name ohne Adjektive in "name"
+- Adjektive wie "fein gehackt", "dünn geschnitten", "gerieben" gehören in den Zubereitungsschritt, nicht in den Zutatennamen
+- Zubereitungsschritte als klare, einzelne Schritte
 
 Antworte NUR mit validem JSON, kein Text davor oder danach, keine Markdown-Backticks:
 {
