@@ -191,6 +191,39 @@ module.exports = async function handler(req, res) {
     "scheibe toast": 30, "scheibe brot": 35,
   };
 
+  // ── Feste Nährwerte pro 100g für Lebensmittel die USDA falsch trifft ────────
+  // Format: { kcal, protein, carbs, fat }
+  const HARDCODED = {
+    "gnocchi":          { kcal: 133, protein: 3.8, carbs: 24.0, fat: 1.9 },
+    "gnocchi potato":   { kcal: 133, protein: 3.8, carbs: 24.0, fat: 1.9 },
+    "cherry tomatoes":  { kcal: 18,  protein: 0.9, carbs: 3.9,  fat: 0.2 },
+    "mixed herbs dried":{ kcal: 10,  protein: 0.5, carbs: 1.5,  fat: 0.2 },
+    "mixed spices":     { kcal: 10,  protein: 0.5, carbs: 1.5,  fat: 0.2 },
+    "salt":             { kcal: 0,   protein: 0.0, carbs: 0.0,  fat: 0.0 },
+    "black pepper":     { kcal: 5,   protein: 0.2, carbs: 1.4,  fat: 0.1 },
+    "paprika powder":   { kcal: 10,  protein: 0.5, carbs: 1.9,  fat: 0.3 },
+    "oregano dried":    { kcal: 10,  protein: 0.4, carbs: 1.6,  fat: 0.2 },
+    "basil fresh":      { kcal: 3,   protein: 0.3, carbs: 0.3,  fat: 0.1 },
+    "parsley fresh":    { kcal: 4,   protein: 0.4, carbs: 0.5,  fat: 0.1 },
+    "thyme fresh":      { kcal: 5,   protein: 0.3, carbs: 0.7,  fat: 0.1 },
+    "rosemary fresh":   { kcal: 6,   protein: 0.2, carbs: 1.1,  fat: 0.2 },
+    "chives fresh":     { kcal: 3,   protein: 0.3, carbs: 0.4,  fat: 0.1 },
+    "dill fresh":       { kcal: 3,   protein: 0.3, carbs: 0.4,  fat: 0.1 },
+    "bay leaves":       { kcal: 2,   protein: 0.1, carbs: 0.5,  fat: 0.0 },
+    "mint fresh":       { kcal: 4,   protein: 0.3, carbs: 0.6,  fat: 0.1 },
+    "lemon juice":      { kcal: 22,  protein: 0.4, carbs: 6.9,  fat: 0.2 },
+    "lime juice":       { kcal: 25,  protein: 0.4, carbs: 8.4,  fat: 0.1 },
+    "vinegar":          { kcal: 18,  protein: 0.0, carbs: 0.9,  fat: 0.0 },
+    "vinegar white wine":{ kcal: 18, protein: 0.0, carbs: 0.9,  fat: 0.0 },
+    "vinegar balsamic": { kcal: 88,  protein: 0.5, carbs: 17.0, fat: 0.0 },
+    "water":            { kcal: 0,   protein: 0.0, carbs: 0.0,  fat: 0.0 },
+    "vegetable broth":  { kcal: 7,   protein: 0.5, carbs: 1.0,  fat: 0.1 },
+    "chicken broth":    { kcal: 10,  protein: 1.2, carbs: 0.5,  fat: 0.3 },
+    "beef broth":       { kcal: 12,  protein: 1.5, carbs: 0.5,  fat: 0.4 },
+    "red wine":         { kcal: 85,  protein: 0.1, carbs: 2.6,  fat: 0.0 },
+    "white wine":       { kcal: 82,  protein: 0.1, carbs: 2.6,  fat: 0.0 },
+  };
+
   function cleanIngredientName(name) {
     let lower = name.toLowerCase().trim();
     // Entferne Füllwörter
@@ -322,50 +355,53 @@ module.exports = async function handler(req, res) {
 
       const englishName = translateIngredient(ing.name);
       const grams = parseGrams(ing.amount, ing.unit, ing.name);
-
-      const searchRes = await fetch(
-        "https://api.nal.usda.gov/fdc/v1/foods/search?query=" +
-        encodeURIComponent(englishName) +
-        "&dataType=Foundation,SR%20Legacy&pageSize=1&api_key=" + API_KEY
-      );
-
-      if (!searchRes.ok) continue;
-      const searchData = await searchRes.json();
-      if (!searchData.foods || searchData.foods.length === 0) {
-        notFound.push(ing.name);
-        continue;
-      }
-
-      const food = searchData.foods[0];
-      const nutrients = food.foodNutrients || [];
-
-      const get = (keyword, unitCheck) => {
-        const n = nutrients.find(x => x.nutrientName && x.nutrientName.toLowerCase().includes(keyword.toLowerCase()));
-        if (!n) return 0;
-        // Energie kann in kJ oder kcal geliefert werden – prüfen und ggf. umrechnen
-        if (unitCheck === "energy") {
-          const unit = (n.nutrientNumber === "208") ? "kcal" : (n.unitName || "").toLowerCase();
-          if (unit === "kj" || unit === "kilojoules") return (n.value || 0) / 4.184;
-          return n.value || 0;
-        }
-        return n.value || 0;
-      };
-
       const factor = grams / 100;
-      // Nutrient 208 = Energy in kcal, Nutrient 268 = Energy in kJ
-      const energyNutrient = nutrients.find(x => x.nutrientNumber === "208") || nutrients.find(x => x.nutrientName && x.nutrientName.toLowerCase().includes("energy"));
-      let rawKcal = 0;
-      if (energyNutrient) {
-        const unitName = (energyNutrient.unitName || "").toLowerCase();
-        rawKcal = energyNutrient.value || 0;
-        if (unitName === "kj") rawKcal = rawKcal / 4.184;
-        // Sanity check: mehr als 900 kcal/100g ist unrealistisch (reines Fett hat ~900)
-        if (rawKcal > 900) rawKcal = rawKcal / 4.184;
+
+      let kcal = 0, protein = 0, carbs = 0, fat = 0;
+
+      // Erst in der Hardcoded-Tabelle nachschauen
+      const hardcoded = HARDCODED[englishName.toLowerCase()] || HARDCODED[cleanIngredientName(ing.name)];
+      if (hardcoded) {
+        kcal    = hardcoded.kcal * factor;
+        protein = hardcoded.protein * factor;
+        carbs   = hardcoded.carbs * factor;
+        fat     = hardcoded.fat * factor;
+      } else {
+        // USDA-Suche
+        const searchRes = await fetch(
+          "https://api.nal.usda.gov/fdc/v1/foods/search?query=" +
+          encodeURIComponent(englishName) +
+          "&dataType=Foundation,SR%20Legacy&pageSize=1&api_key=" + API_KEY
+        );
+
+        if (!searchRes.ok) continue;
+        const searchData = await searchRes.json();
+        if (!searchData.foods || searchData.foods.length === 0) {
+          notFound.push(ing.name);
+          continue;
+        }
+
+        const food = searchData.foods[0];
+        const nutrients = food.foodNutrients || [];
+
+        const get = (keyword) => {
+          const n = nutrients.find(x => x.nutrientName && x.nutrientName.toLowerCase().includes(keyword.toLowerCase()));
+          return n ? (n.value || 0) : 0;
+        };
+
+        const energyNutrient = nutrients.find(x => x.nutrientNumber === "208") || nutrients.find(x => x.nutrientName && x.nutrientName.toLowerCase().includes("energy"));
+        let rawKcal = 0;
+        if (energyNutrient) {
+          const unitName = (energyNutrient.unitName || "").toLowerCase();
+          rawKcal = energyNutrient.value || 0;
+          if (unitName === "kj") rawKcal = rawKcal / 4.184;
+          if (rawKcal > 900) rawKcal = rawKcal / 4.184;
+        }
+        kcal    = rawKcal * factor;
+        protein = get("Protein") * factor;
+        carbs   = get("Carbohydrate") * factor;
+        fat     = get("Total lipid") * factor;
       }
-      const kcal = rawKcal * factor;
-      const protein = get("Protein") * factor;
-      const carbs   = get("Carbohydrate") * factor;
-      const fat     = get("Total lipid") * factor;
 
       totals.kcal    += kcal;
       totals.protein += protein;
