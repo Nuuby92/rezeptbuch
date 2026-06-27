@@ -21,10 +21,14 @@ Regeln zur Übersetzung:
 - Übersetze Rezeptname, Beschreibung und Zubereitungsschritte ins Deutsche
 - Zutatenname auf Deutsch, ABER: Behalte internationale/asiatische/exotische Produktnamen im Original wenn es keinen gebräuchlichen deutschen Begriff gibt (z.B. "Dumpling Wrapper", "Gyoza", "Miso", "Tahini", "Sriracha", "Panko", "Tofu", "Edamame", "Nori", "Kimchi", "Mirin", "Dashi")
 - Übersetze nur wenn ein echter, gebräuchlicher deutscher Begriff existiert (z.B. "chicken" → "Hähnchen", "garlic" → "Knoblauch")
+- Diese Begriffe NIEMALS übersetzen, immer im Original lassen: Chili Crisp, Chili Oil, Chili Crunch, Sriracha, Miso, Tahini, Tofu, Tempeh, Edamame, Kimchi, Mirin, Dashi, Panko, Nori, Gyoza, Dumpling, Wonton, Ramen, Udon, Soba, Pad Thai, Pho, Kimchi, Gochujang, Doenjang, Hoisin, Miso, Ponzu, Yuzu, Matcha, Dashi, Bonito
 
 Regeln für Einheiten:
 - Einheiten im Feld "unit" müssen exakt eines dieser Werte sein: g, kg, ml, l, EL, TL, Tasse, Stk, Scheibe, Prise, Zehe (oder leer lassen)
 - Feste Lebensmittel (Gemüse, Fleisch, Käse, Nüsse usw.) immer in g, NIEMALS in ml
+- Frühlingszwiebeln, Zwiebeln, Schalotten und jedes andere Gemüse immer in g, auch wenn im Original cups oder ml angegeben sind
+- "green onions" oder "scallions" immer als "Frühlingszwiebeln" übersetzen, NICHT als "grüne Zwiebeln"
+- 1 cup gehackte Frühlingszwiebeln ≈ 100g, 1 cup gehackte Zwiebeln ≈ 160g
 - Flüssigkeiten (Wasser, Brühe, Öl, Milch, Soßen) in ml oder EL/TL
 - Wenn eine Zutat "zum Servieren" oder "nach Geschmack" ist ohne Mengenangabe: amount="" und unit="" lassen
 - Stückweise Zutaten (Eier, Zwiebeln, Knoblauchzehen) → unit="Stk" oder unit="Zehe"
