@@ -207,8 +207,8 @@ module.exports = async function handler(req, res) {
     "peperoni": 20, "chilischote": 15,
     "lorbeerblatt": 1, "lorbeerblätter": 1,
     "scheibe toast": 30, "scheibe brot": 35,
-    "dumpling wrapper": 20, "dumpling wrappers": 20,
-    "gyoza": 20, "wonton wrapper": 20, "wonton wrappers": 20,
+    "dumpling wrapper": 8, "dumpling wrappers": 8,
+    "gyoza": 8, "wonton wrapper": 8, "wonton wrappers": 8,
   };
 
   // ── Feste Nährwerte pro 100g für Lebensmittel die USDA falsch trifft ────────
@@ -245,7 +245,7 @@ module.exports = async function handler(req, res) {
     "beef broth":       { kcal: 12,  protein: 1.5, carbs: 0.5,  fat: 0.4 },
     "red wine":         { kcal: 85,  protein: 0.1, carbs: 2.6,  fat: 0.0 },
     "white wine":       { kcal: 82,  protein: 0.1, carbs: 2.6,  fat: 0.0 },
-    "dumpling wrapper":  { kcal: 290, protein: 7.8, carbs: 58.0, fat: 1.5 },
+    "dumpling wrapper":  { kcal: 291, protein: 9.8, carbs: 58.0, fat: 2.0 },
     "chili oil":         { kcal: 820, protein: 0.0, carbs: 0.0,  fat: 92.0 },
     "chili crisp":       { kcal: 600, protein: 5.0, carbs: 15.0, fat: 55.0 },
     "chili crunch":      { kcal: 600, protein: 5.0, carbs: 15.0, fat: 55.0 },
