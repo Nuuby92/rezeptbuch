@@ -423,6 +423,8 @@ module.exports = async function handler(req, res) {
 
     for (const ing of ingredients) {
       if (!ing.name) continue;
+      // Zutaten ohne Mengenangabe überspringen (z.B. "zum Servieren")
+      if (!ing.amount || ing.amount.toString().trim() === "") continue;
 
       const cleanedName = cleanIngredientName(ing.name);
       const englishName = translateIngredient(ing.name);
