@@ -87,7 +87,7 @@ module.exports = async function handler(req, res) {
     "champignons": "mushrooms raw", "pilze": "mushrooms raw",
     "spargel": "asparagus raw", "rote bete": "beets raw",
     "fenchel": "fennel raw", "kohlrabi": "kohlrabi raw",
-    "frühlingszwiebeln": "green onions raw",
+    "frühlingszwiebeln": "green onions raw", "fruhlingszwiebeln": "green onions raw", "frühlingszwiebel": "green onions raw",
     "apfel": "apple raw", "äpfel": "apple raw",
     "birne": "pear raw", "banane": "banana raw", "bananen": "banana raw",
     "orange": "orange raw", "zitrone": "lemon raw",
@@ -108,7 +108,7 @@ module.exports = async function handler(req, res) {
     "sonnenblumenöl": "sunflower oil", "sonnenblumenol": "sunflower oil",
     "rapsöl": "canola oil", "rapsol": "canola oil",
     "kokosöl": "coconut oil", "pflanzenöl": "vegetable oil",
-    "sojasosse": "soy sauce", "sojasoße": "soy sauce",
+    "sojasosse": "soy sauce", "sojasoße": "soy sauce", "sojasauce": "soy sauce",
     "ketchup": "ketchup", "senf": "mustard yellow",
     "dijonsenf": "mustard dijon", "mayonnaise": "mayonnaise",
     "essig": "vinegar", "weißweinessig": "vinegar white wine",
@@ -237,6 +237,9 @@ module.exports = async function handler(req, res) {
     "vinegar white wine":{ kcal: 18, protein: 0.0, carbs: 0.9,  fat: 0.0 },
     "vinegar balsamic": { kcal: 88,  protein: 0.5, carbs: 17.0, fat: 0.0 },
     "water":            { kcal: 0,   protein: 0.0, carbs: 0.0,  fat: 0.0 },
+    "soy sauce":        { kcal: 53,  protein: 8.1, carbs: 4.9,  fat: 0.6 },
+    "green onions raw": { kcal: 32,  protein: 1.8, carbs: 7.3,  fat: 0.2 },
+    "spring onions":    { kcal: 32,  protein: 1.8, carbs: 7.3,  fat: 0.2 },
     "vegetable broth":  { kcal: 7,   protein: 0.5, carbs: 1.0,  fat: 0.1 },
     "chicken broth":    { kcal: 10,  protein: 1.2, carbs: 0.5,  fat: 0.3 },
     "beef broth":       { kcal: 12,  protein: 1.5, carbs: 0.5,  fat: 0.4 },
@@ -288,6 +291,10 @@ module.exports = async function handler(req, res) {
 
   function cleanIngredientName(name) {
     let lower = name.toLowerCase().trim();
+    // Entferne alles nach einem Komma (z.B. "Frühlingszwiebeln, dünn geschnitten" → "Frühlingszwiebeln")
+    if (lower.includes(",")) {
+      lower = lower.split(",")[0].trim();
+    }
     // Entferne Klammern und ihren Inhalt z.B. "(Dose)", "(TK)"
     lower = lower.replace(/\([^)]*\)/g, "").trim();
     // Entferne Füllwörter
@@ -417,14 +424,17 @@ module.exports = async function handler(req, res) {
     for (const ing of ingredients) {
       if (!ing.name) continue;
 
+      const cleanedName = cleanIngredientName(ing.name);
       const englishName = translateIngredient(ing.name);
       const grams = parseGrams(ing.amount, ing.unit, ing.name);
       const factor = grams / 100;
 
       let kcal = 0, protein = 0, carbs = 0, fat = 0;
 
-      // Erst in der Hardcoded-Tabelle nachschauen
-      const hardcoded = HARDCODED[englishName.toLowerCase()] || HARDCODED[cleanIngredientName(ing.name)];
+      // Erst in der Hardcoded-Tabelle nachschauen – Originalname, bereinigter Name UND übersetzter Name
+      const hardcoded = HARDCODED[cleanedName]
+        || HARDCODED[englishName.toLowerCase()]
+        || HARDCODED[ing.name.toLowerCase().trim()];
       if (hardcoded) {
         kcal    = hardcoded.kcal * factor;
         protein = hardcoded.protein * factor;
