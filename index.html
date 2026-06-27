@@ -221,6 +221,42 @@
   </div>
 </div>
 
+<!-- Import modal -->
+<div class="modal-overlay" id="import-modal" onclick="onImportModalBgClick(event)">
+  <div class="modal-box" style="max-width:520px">
+    <div class="modal-hd">
+      <h3>&#128203; Rezept importieren</h3>
+      <button class="btn btn-ghost btn-icon" onclick="closeImportModal()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div id="import-tabs" style="display:flex;gap:6px;margin-bottom:14px">
+      <button class="nutrition-tab active" id="import-tab-text" onclick="switchImportTab('text')">&#128464; Text einfügen</button>
+      <button class="nutrition-tab" id="import-tab-image" onclick="switchImportTab('image')">&#128247; Screenshot</button>
+    </div>
+    <div id="import-text-area">
+      <textarea id="import-text" class="inp" rows="8" style="resize:vertical;width:100%" placeholder="Rezepttext hier einfügen – auf Englisch oder Deutsch, aus jeder Quelle..."></textarea>
+    </div>
+    <div id="import-image-area" style="display:none">
+      <div id="import-drop-zone" style="border:2px dashed var(--border);border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:border-color .15s" onclick="document.getElementById('import-file').click()" ondragover="onImportDragOver(event)" ondrop="onImportDrop(event)">
+        <div style="font-size:32px;margin-bottom:8px">&#128247;</div>
+        <p style="font-size:14px;color:var(--text-muted)">Screenshot hier hineinziehen oder klicken zum Auswählen</p>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:4px">JPG, PNG, WEBP</p>
+      </div>
+      <input type="file" id="import-file" accept="image/*" style="display:none" onchange="onImportFileSelected(event)" />
+      <div id="import-preview" style="display:none;margin-top:12px;text-align:center">
+        <img id="import-preview-img" style="max-width:100%;max-height:200px;border-radius:8px;border:1px solid var(--border)" />
+        <button class="btn btn-ghost btn-sm" onclick="clearImportImage()" style="margin-top:8px">&#10005; Bild entfernen</button>
+      </div>
+    </div>
+    <div id="import-status" style="font-size:13px;color:var(--text-muted);text-align:center;padding:8px 0;min-height:24px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+      <button class="btn btn-secondary" onclick="closeImportModal()">Abbrechen</button>
+      <button class="btn btn-primary" id="import-submit-btn" onclick="submitImport()">&#10024; Rezept importieren</button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, collection, doc, onSnapshot, addDoc, setDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -450,6 +486,118 @@ window.switchTab = function(tab) {
   S.tab=tab; S.view="list"; S.editing=null; S.viewing=null; S.search=""; S.nutrition=null;
   ["recipes","week","shopping"].forEach(function(t){document.getElementById("nav-"+t).classList.toggle("active",t===tab);});
   render();
+};
+
+// ── Import modal ──────────────────────────────────────────────────────────
+var importImageBase64 = null;
+var importImageType = null;
+var importTab = "text";
+
+window.openImportModal = function() {
+  importImageBase64 = null; importImageType = null;
+  document.getElementById("import-text").value = "";
+  document.getElementById("import-status").textContent = "";
+  document.getElementById("import-preview").style.display = "none";
+  document.getElementById("import-drop-zone").style.display = "";
+  switchImportTab("text");
+  document.getElementById("import-modal").classList.add("open");
+};
+
+window.closeImportModal = function() { document.getElementById("import-modal").classList.remove("open"); };
+window.onImportModalBgClick = function(e) { if(e.target===document.getElementById("import-modal")) window.closeImportModal(); };
+
+window.switchImportTab = function(tab) {
+  importTab = tab;
+  document.getElementById("import-text-area").style.display = tab==="text" ? "" : "none";
+  document.getElementById("import-image-area").style.display = tab==="image" ? "" : "none";
+  document.getElementById("import-tab-text").classList.toggle("active", tab==="text");
+  document.getElementById("import-tab-image").classList.toggle("active", tab==="image");
+};
+
+window.onImportDragOver = function(e) { e.preventDefault(); e.currentTarget.style.borderColor = "var(--green-dark)"; };
+window.onImportDrop = function(e) {
+  e.preventDefault(); e.currentTarget.style.borderColor = "var(--border)";
+  var file = e.dataTransfer.files[0];
+  if (file) loadImportImage(file);
+};
+window.onImportFileSelected = function(e) { var file = e.target.files[0]; if(file) loadImportImage(file); };
+
+function loadImportImage(file) {
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var dataUrl = e.target.result;
+    importImageBase64 = dataUrl.split(",")[1];
+    importImageType = file.type;
+    document.getElementById("import-preview-img").src = dataUrl;
+    document.getElementById("import-preview").style.display = "";
+    document.getElementById("import-drop-zone").style.display = "none";
+  };
+  reader.readAsDataURL(file);
+}
+
+window.clearImportImage = function() {
+  importImageBase64 = null; importImageType = null;
+  document.getElementById("import-preview").style.display = "none";
+  document.getElementById("import-drop-zone").style.display = "";
+  document.getElementById("import-file").value = "";
+};
+
+window.submitImport = async function() {
+  var statusEl = document.getElementById("import-status");
+  var btn = document.getElementById("import-submit-btn");
+  var text = document.getElementById("import-text").value.trim();
+
+  if (importTab === "text" && !text) {
+    statusEl.textContent = "Bitte Rezepttext einfügen.";
+    statusEl.style.color = "var(--danger)";
+    return;
+  }
+  if (importTab === "image" && !importImageBase64) {
+    statusEl.textContent = "Bitte ein Bild auswählen.";
+    statusEl.style.color = "var(--danger)";
+    return;
+  }
+
+  btn.disabled = true;
+  statusEl.textContent = "Rezept wird analysiert…";
+  statusEl.style.color = "var(--text-muted)";
+
+  try {
+    var body = {};
+    if (importTab === "image") {
+      body.imageBase64 = importImageBase64;
+      body.imageType = importImageType;
+    } else {
+      body.text = text;
+    }
+
+    var res = await fetch("/api/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    var data = await res.json();
+
+    if (!res.ok) {
+      statusEl.textContent = data.error || "Fehler beim Importieren.";
+      statusEl.style.color = "var(--danger)";
+      btn.disabled = false;
+      return;
+    }
+
+    // Open recipe in form with pre-filled data
+    S.editing = data.recipe;
+    S.view = "form";
+    window.closeImportModal();
+    btn.disabled = false;
+    toast("Rezept importiert – bitte prüfen und speichern!");
+    render();
+
+  } catch(e) {
+    statusEl.textContent = "Fehler: " + e.message;
+    statusEl.style.color = "var(--danger)";
+    btn.disabled = false;
+  }
 };
 
 // ── Browser history ────────────────────────────────────────────────────────
