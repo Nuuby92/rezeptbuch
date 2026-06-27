@@ -142,6 +142,12 @@ module.exports = async function handler(req, res) {
     "hafermilch": "oat milk", "sojamilch": "soy milk",
     "tofu": "tofu firm", "miso": "miso paste",
     "pak choi": "bok choy raw", "edamame": "edamame",
+    "currypaste": "curry paste", "curry paste": "curry paste",
+    "rote currypaste": "curry paste", "grüne currypaste": "curry paste",
+    "kokosmilch": "coconut milk canned", "kokosnussmilch": "coconut milk canned",
+    "kichererbsen": "chickpeas canned", "kichererbsen dose": "chickpeas canned",
+    "kichererbsen (dose)": "chickpeas canned",
+    "kidneybohnen": "kidney beans canned", "kidneybohnen dose": "kidney beans canned",
   };
 
   // ── Adjektive/Füllwörter die aus dem Zutatenname entfernt werden ──────────
@@ -168,7 +174,7 @@ module.exports = async function handler(req, res) {
 
   // ── Typische Stückgewichte in Gramm ──────────────────────────────────────
   const PIECE_WEIGHTS = {
-    "knoblauchzehe": 5, "knoblauchzehen": 5, "knoblauch": 5,
+    "knoblauchzehe": 5, "knoblauchzehen": 5, "knoblauch": 5, "knoblauchzehe": 5,
     "zwiebel": 110, "zwiebeln": 110,
     "schalotte": 30, "schalotten": 30,
     "ei": 60, "eier": 60,
@@ -222,10 +228,28 @@ module.exports = async function handler(req, res) {
     "beef broth":       { kcal: 12,  protein: 1.5, carbs: 0.5,  fat: 0.4 },
     "red wine":         { kcal: 85,  protein: 0.1, carbs: 2.6,  fat: 0.0 },
     "white wine":       { kcal: 82,  protein: 0.1, carbs: 2.6,  fat: 0.0 },
+    // Kokosmilch – volle Dose, nicht Kokosdrink
+    "coconut milk canned": { kcal: 197, protein: 2.0, carbs: 2.8,  fat: 21.3 },
+    // Kichererbsen aus Dose (abgetropft)
+    "chickpeas canned":    { kcal: 120, protein: 7.2, carbs: 17.8, fat: 2.6 },
+    // Currypaste
+    "curry paste":         { kcal: 150, protein: 3.0, carbs: 12.0, fat: 10.0 },
+    "currypaste":          { kcal: 150, protein: 3.0, carbs: 12.0, fat: 10.0 },
+    // Tomaten Dose
+    "tomatoes canned":     { kcal: 20,  protein: 1.0, carbs: 4.0,  fat: 0.2 },
+    "tomato puree":        { kcal: 38,  protein: 1.6, carbs: 8.5,  fat: 0.2 },
+    "tomato paste":        { kcal: 82,  protein: 4.3, carbs: 18.9, fat: 0.5 },
+    "tomato sauce":        { kcal: 29,  protein: 1.2, carbs: 6.3,  fat: 0.3 },
+    // Hülsenfrüchte
+    "kidney beans canned": { kcal: 94,  protein: 6.5, carbs: 16.5, fat: 0.4 },
+    "lentils raw":         { kcal: 353, protein: 25.8,carbs: 60.1, fat: 1.1 },
+    "lentils red raw":     { kcal: 353, protein: 25.8,carbs: 60.1, fat: 1.1 },
   };
 
   function cleanIngredientName(name) {
     let lower = name.toLowerCase().trim();
+    // Entferne Klammern und ihren Inhalt z.B. "(Dose)", "(TK)"
+    lower = lower.replace(/\([^)]*\)/g, "").trim();
     // Entferne Füllwörter
     for (const word of STRIP_WORDS) {
       lower = lower.replace(new RegExp("\\b" + word + "\\b", "g"), "").trim();
