@@ -555,6 +555,11 @@ function initApp() {
     else S.weekPlan = {};
     render();
   });
+  getDoc(doc(db, "users", S.user.uid, "winelist", "current")).then(function(d) {
+    if (d.exists() && d.data().wines) S.wineList = d.data().wines;
+    else S.wineList = [];
+    renderOnly();
+  });
 }
 
 // ── Firebase ───────────────────────────────────────────────────────────────
@@ -1378,8 +1383,8 @@ window.addWineToList = function(grape, type, region) {
   var exists = S.wineList.some(function(w){ return w.label === label; });
   if (exists) { toast(label + ' bereits auf der Liste'); return; }
   S.wineList.push({ label: label, region: region, done: false });
+  fbSaveWineList();
   toast('✓ ' + label + ' zur Einkaufsliste hinzugefügt');
-  // Update shopping list if visible
   if (S.tab === 'shopping') renderOnly();
 };
 
@@ -1673,7 +1678,7 @@ function tplShopping(){
         + '</div>';
     });
     wineSection = '<div style="margin-bottom:20px">'
-      + '<p style="font-size:11px;font-weight:800;color:#581C87;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">&#127863; Weine</p>'
+      + '<p style="font-size:11px;font-weight:800;color:#581C87;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">&#127863; Weine (' + S.wineList.length + ')</p>'
       + '<div class="shop-box" style="border-color:#E9D5FF;background:#FAF5FF">' + wineItems + '</div>'
       + '<button class="btn btn-ghost btn-sm" onclick="clearWineList()" style="color:var(--danger)">&#10005; Liste leeren</button>'
       + '</div>';
@@ -1681,7 +1686,7 @@ function tplShopping(){
 
   return '<h2 style="font-size:22px;font-weight:800;margin-bottom:8px">Einkaufsliste</h2>'
     +'<p style="font-size:14px;color:var(--text-muted);margin-bottom:18px">Basierend auf deinem Wochenplan.</p>'
-    +wineSection+recipeList+shopList;
+    +recipeList+shopList+wineSection;
 }
 
 // ── Modal ──────────────────────────────────────────────────────────────────
@@ -1870,9 +1875,9 @@ window.doDlDetail=function(){
 };
 window.doDetailToWeek=function(){if(!S.viewing)return;S._pendingPortions=S.scaledPortions||parseInt(S.viewing.servings)||1;openDayModal(S.viewing.id);};
 window.toggleShopI=function(key){S.shopChecked[key]=!S.shopChecked[key];render();};
-window.toggleWineItem=function(idx){if(S.wineList[idx])S.wineList[idx].done=!S.wineList[idx].done;renderOnly();};
-window.removeWineItem=function(idx){S.wineList.splice(idx,1);renderOnly();};
-window.clearWineList=function(){S.wineList=[];renderOnly();};
+window.toggleWineItem=function(idx){if(S.wineList[idx])S.wineList[idx].done=!S.wineList[idx].done;fbSaveWineList();renderOnly();};
+window.removeWineItem=function(idx){S.wineList.splice(idx,1);fbSaveWineList();renderOnly();};
+window.clearWineList=function(){S.wineList=[];fbSaveWineList();renderOnly();};
 
 history.replaceState({tab:"recipes",view:"list",viewingId:null},"","?tab=recipes");
 </script>
