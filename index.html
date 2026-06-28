@@ -164,6 +164,20 @@
     .alt-name { font-weight: 700; font-size: 15px; color: var(--green-darkest); margin-bottom: 4px; }
     .alt-amount { font-size: 12px; font-weight: 600; color: var(--green-dark); margin-bottom: 6px; }
     .alt-note { font-size: 13px; color: var(--text-sub); line-height: 1.5; }
+    .tag { display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap; }
+    .tag-meal { background:#DBEAFE;color:#1E40AF; }
+    .tag-ingredient { background:#D1FAE5;color:#065F46; }
+    .tag-cuisine { background:#FEF3C7;color:#92400E; }
+    .tag-type { background:#EDE9FE;color:#5B21B6; }
+    .tag-effort { background:#FCE7F3;color:#9D174D; }
+    .tag-filter { cursor:pointer;border:1.5px solid transparent;transition:all .15s; }
+    .tag-filter:hover { opacity:.8; }
+    .tag-filter.active { border-color:currentColor;box-shadow:0 0 0 2px currentColor; }
+    .filter-panel { background:var(--surface);border-radius:14px;border:1.5px solid var(--border);padding:16px;margin-bottom:16px; }
+    .filter-section { margin-bottom:12px; }
+    .filter-section:last-child { margin-bottom:0; }
+    .filter-section-label { font-size:10px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px; }
+    .filter-tags { display:flex;flex-wrap:wrap;gap:5px; }
     #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--green-darkest); color: #fff; padding: 10px 22px; border-radius: 999px; font-size: 14px; font-weight: 600; z-index: 300; transition: transform .25s; pointer-events: none; white-space: nowrap; }
     #toast.show { transform: translateX(-50%) translateY(0); }
     #loading { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 500; gap: 16px; }
@@ -408,6 +422,8 @@ var S = {
   tab: "recipes", view: "list",
   editing: null, viewing: null, search: "",
   shopChecked: {},
+  activeFilters: [],
+  filterOpen: false,
   modalMode: "week", modalDay: null, modalRecipeId: null,
   bringItems: [],
   nutrition: null, nutritionTab: "portion", nutritionLoading: false,
@@ -839,6 +855,88 @@ window.switchTab=function(tab){
   render();
 };
 
+// ── Auto-categorize ────────────────────────────────────────────────────────
+var TAG_COLORS = {
+  "Hauptgericht":"tag-meal","Beilage":"tag-meal","Frühstück":"tag-meal","Snack":"tag-meal","Dessert":"tag-meal","Getränk":"tag-meal",
+  "Fleisch":"tag-ingredient","Geflügel":"tag-ingredient","Fisch":"tag-ingredient","Meeresfrüchte":"tag-ingredient",
+  "Vegetarisch":"tag-ingredient","Vegan":"tag-ingredient","Eier":"tag-ingredient","Käse":"tag-ingredient",
+  "Italienisch":"tag-cuisine","Asiatisch":"tag-cuisine","Deutsch":"tag-cuisine","Mexikanisch":"tag-cuisine",
+  "Mediterran":"tag-cuisine","Indisch":"tag-cuisine","Amerikanisch":"tag-cuisine","Französisch":"tag-cuisine",
+  "Pasta/Nudeln":"tag-type","Reis/Getreide":"tag-type","Suppe/Eintopf":"tag-type","Salat":"tag-type",
+  "Sandwich/Wrap":"tag-type","Pizza":"tag-type","Curry":"tag-type","Pfannengericht":"tag-type",
+  "Backen":"tag-type","Rohkost":"tag-type","Bowl":"tag-type",
+  "Schnell":"tag-effort","Mittel":"tag-effort","Aufwendig":"tag-effort"
+};
+
+function tagClass(tag) { return "tag " + (TAG_COLORS[tag] || "tag-meal"); }
+
+async function autoCategorizRecipe(recipe) {
+  try {
+    var res = await fetch("/api/categorize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: recipe.name, description: recipe.description, ingredients: recipe.ingredients }),
+    });
+    var data = await res.json();
+    return data.tags || [];
+  } catch(e) { return []; }
+}
+
+function tagHtml(tag, clickable, active) {
+  var cls = tagClass(tag) + (clickable ? " tag-filter" + (active ? " active" : "") : "");
+  var onclick = clickable ? ' onclick="toggleFilter(' + JSON.stringify(tag) + ')"' : '';
+  return '<span class="' + cls + '"' + onclick + '>' + esc(tag) + '</span>';
+}
+
+window.toggleFilter = function(tag) {
+  var idx = S.activeFilters.indexOf(tag);
+  if (idx >= 0) S.activeFilters.splice(idx, 1);
+  else S.activeFilters.push(tag);
+  render();
+};
+
+window.clearFilters = function() { S.activeFilters = []; render(); };
+window.toggleFilterPanel = function() { S.filterOpen = !S.filterOpen; render(); };
+
+function filterPanel() {
+  // Collect all tags from all recipes
+  var allTags = {};
+  S.recipes.forEach(function(r) {
+    (r.tags || []).forEach(function(t) { allTags[t] = (allTags[t]||0)+1; });
+  });
+
+  var groups = {
+    "Mahlzeit": ["Hauptgericht","Beilage","Frühstück","Snack","Dessert","Getränk"],
+    "Zutaten": ["Fleisch","Geflügel","Fisch","Meeresfrüchte","Vegetarisch","Vegan","Eier","Käse"],
+    "Küche": ["Italienisch","Asiatisch","Deutsch","Mexikanisch","Mediterran","Indisch","Amerikanisch","Französisch"],
+    "Art": ["Pasta/Nudeln","Reis/Getreide","Suppe/Eintopf","Salat","Sandwich/Wrap","Pizza","Curry","Pfannengericht","Backen","Bowl"],
+    "Aufwand": ["Schnell","Mittel","Aufwendig"]
+  };
+
+  var html = '<div class="filter-panel">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
+  html += '<span style="font-size:13px;font-weight:700;color:var(--text-sub)">Filter</span>';
+  if (S.activeFilters.length > 0) {
+    html += '<button class="btn btn-ghost btn-sm" onclick="clearFilters()">&#10005; Alle löschen ('+S.activeFilters.length+')</button>';
+  }
+  html += '</div>';
+
+  Object.keys(groups).forEach(function(groupName) {
+    var tags = groups[groupName].filter(function(t) { return allTags[t]; });
+    if (tags.length === 0) return;
+    html += '<div class="filter-section">';
+    html += '<div class="filter-section-label">'+groupName+'</div>';
+    html += '<div class="filter-tags">';
+    tags.forEach(function(tag) {
+      var active = S.activeFilters.indexOf(tag) >= 0;
+      html += tagHtml(tag, true, active) + ' <span style="font-size:10px;color:var(--text-muted)">'+allTags[tag]+'</span> ';
+    });
+    html += '</div></div>';
+  });
+  html += '</div>';
+  return html;
+}
+
 // ── Stats modal ────────────────────────────────────────────────────────────
 window.openStatsModal = function() {
   document.getElementById("user-dropdown").classList.remove("open");
@@ -1261,7 +1359,15 @@ function render(){renderOnly();pushState();}
 // ── Templates ──────────────────────────────────────────────────────────────
 function tplList(){
   var q=S.search.toLowerCase();
-  var list=S.recipes.filter(function(r){return r.name.toLowerCase().indexOf(q)>=0;});
+  var list=S.recipes.filter(function(r){
+    if(r.name.toLowerCase().indexOf(q)<0) return false;
+    if(S.activeFilters.length>0){
+      var rTags=r.tags||[];
+      var allMatch=S.activeFilters.every(function(f){return rTags.indexOf(f)>=0;});
+      if(!allMatch) return false;
+    }
+    return true;
+  });
   var cards="";
   if(list.length===0){
     cards='<div class="empty"><div class="empty-icon">&#128214;</div><h3>'+(S.search?"Keine Treffer":"Noch keine Rezepte")+'</h3><p>'+(S.search?"Anderen Begriff versuchen.":"F&uuml;ge dein erstes Rezept hinzu!")+'</p></div>';
@@ -1277,6 +1383,7 @@ function tplList(){
         +(r.prepTime?'<span>'+svg(I.clock,12)+' '+esc(r.prepTime)+'</span>':"")
         +'<span>'+ings+' Zutaten</span></div>'
         +(r.createdByName&&!owner?'<div class="recipe-author">von '+esc(r.createdByName)+'</div>':"")
+        +((r.tags&&r.tags.length)?'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">'+(r.tags||[]).slice(0,4).map(function(t){return tagHtml(t,false,false);}).join("")+'</div>':"")
         +'</div>'
         +'<div class="card-actions" onclick="event.stopPropagation()">'
         +(owner?'<button class="btn btn-ghost btn-icon" onclick="doEdit(\''+r.id+'\')" title="Bearbeiten">'+svg(I.edit)+'</button>':'')
@@ -1284,11 +1391,15 @@ function tplList(){
         +'</div></div></div>';
     });
   }
-  return '<div class="section-hd"><h2>Rezepte <span style="color:var(--text-muted);font-weight:400;font-size:16px">('+S.recipes.length+')</span></h2>'
-    +'<div style="display:flex;gap:8px"><button class="btn btn-secondary" onclick="openImportModal()">&#128203; Importieren</button>'
-    +'<button class="btn btn-primary" onclick="doNew()">'+svg(I.plus)+' Neues Rezept</button></div></div>'
+  var hasFilters = S.activeFilters.length > 0;
+  return '<div class="section-hd"><h2>Rezepte <span style="color:var(--text-muted);font-weight:400;font-size:16px">('+list.length+(S.recipes.length!==list.length?'/'+S.recipes.length:'')+')</span></h2>'
+    +'<div style="display:flex;gap:8px">'
+    +'<button class="btn btn-secondary" onclick="toggleFilterPanel()" style="'+(S.filterOpen||hasFilters?'background:var(--green-light);color:var(--green-darkest)':'')+'">&#9878; Filter'+(hasFilters?' ('+S.activeFilters.length+')':'')+'</button>'
+    +'<button class="btn btn-secondary" onclick="openImportModal()">&#128203; Importieren</button>'
+    +'<button class="btn btn-primary" onclick="doNew()">'+svg(I.plus)+' Neu</button></div></div>'
     +'<div class="search-wrap"><span class="search-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>'
     +'<input class="search-input" placeholder="Rezepte durchsuchen\u2026" value="'+esc(S.search)+'" oninput="doSearch(this.value)" /></div>'
+    +(S.filterOpen ? filterPanel() : '')
     +'<div class="recipe-grid">'+cards+'</div>';
 }
 
@@ -1336,6 +1447,7 @@ function tplDetail(){
     +(r.prepTime?'<span>'+svg(I.clock,16)+' '+esc(r.prepTime)+'</span>':"")
     +(r.createdByName?'<span style="font-size:12px;color:var(--text-muted)">von '+esc(r.createdByName)+'</span>':"")
     +'</div>'
+    +((r.tags&&r.tags.length)?'<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:16px">'+(r.tags||[]).map(function(t){return tagHtml(t,false,false);}).join('')+'</div>':"")
     +'<div style="display:flex;align-items:center;gap:14px;background:var(--green-faint);border-radius:12px;padding:14px 18px;margin-bottom:24px;flex-wrap:wrap">'
     +'<span style="font-size:13px;font-weight:700;color:var(--green-darkest)">'+svg(I.users,15)+' Portionen:</span>'
     +'<div style="display:flex;align-items:center;gap:8px">'
@@ -1615,8 +1727,15 @@ window.doSave=async function(existingId){
   var ings=[];document.querySelectorAll("[data-ing]").forEach(function(row){ings.push({id:row.dataset.ing,amount:row.querySelector('[data-f="amount"]').value.trim(),unit:row.querySelector('[data-f="unit"]').value,name:row.querySelector('[data-f="name"]').value.trim()});});
   var steps=[];document.querySelectorAll("[data-step]").forEach(function(row){steps.push({id:row.dataset.step,text:row.querySelector('[data-f="text"]').value.trim()});});
   var existing=existingId?S.recipes.find(function(r){return r.id===existingId;}):null;
-  var recipe={id:existingId||null,name:name,description:document.getElementById("f-desc").value.trim(),servings:document.getElementById("f-srv").value,prepTime:document.getElementById("f-time").value.trim(),ingredients:ings,steps:steps};
+  var tagsInput=document.getElementById("f-tags").value.trim();
+  var manualTags=tagsInput?tagsInput.split(",").map(function(t){return t.trim();}).filter(Boolean):[];
+  var recipe={id:existingId||null,name:name,description:document.getElementById("f-desc").value.trim(),servings:document.getElementById("f-srv").value,prepTime:document.getElementById("f-time").value.trim(),ingredients:ings,steps:steps,tags:manualTags};
   if(existing){recipe.createdBy=existing.createdBy;recipe.createdByName=existing.createdByName;}
+  // Auto-categorize if no tags yet
+  if (!recipe.tags || recipe.tags.length === 0) {
+    var tags = await autoCategorizRecipe(recipe);
+    if (tags.length > 0) recipe.tags = tags;
+  }
   await fbSaveRecipe(recipe);
   var changed=false;
   DAYS.forEach(function(day){
