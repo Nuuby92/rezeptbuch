@@ -333,6 +333,8 @@ var S = {
   nutrition: null, nutritionTab: "portion", nutritionLoading: false,
 };
 var DAYS = ["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
+var MEALS = ["Frühstück","Mittagessen","Abendessen"];
+var MEAL_ICONS = {"Frühstück":"☀️","Mittagessen":"🍽️","Abendessen":"🌙"};
 var unsubRecipes = null;
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 
@@ -482,11 +484,17 @@ function buildUnitSelect(selected) {
 
 // ── Week plan helpers ──────────────────────────────────────────────────────
 function getWeekEntries() {
-  return DAYS.filter(function(d){return S.weekPlan[d];}).map(function(d){
-    var entry = S.weekPlan[d];
-    if (entry && entry.recipe) return entry;
-    return { recipe: entry, portions: parseInt((entry||{}).servings)||1 };
+  var result = [];
+  DAYS.forEach(function(day) {
+    MEALS.forEach(function(meal) {
+      var key = day + "__" + meal;
+      var entry = S.weekPlan[key];
+      if (!entry) return;
+      if (entry && entry.recipe) result.push(Object.assign({day:day,meal:meal}, entry));
+      else result.push({day:day,meal:meal,recipe:entry,portions:parseInt((entry||{}).servings)||1});
+    });
   });
+  return result;
 }
 
 function mergeWeekIngredients() {
@@ -512,12 +520,17 @@ function mergeWeekIngredients() {
 function weekExportText() {
   var ings = mergeWeekIngredients();
   var lines = ["Wocheneinkaufsliste",""];
-  DAYS.forEach(function(d){
-    if (!S.weekPlan[d]) return;
-    var entry = S.weekPlan[d];
-    var r = entry.recipe||entry;
-    var p = entry.portions||parseInt((r||{}).servings)||1;
-    lines.push(d+": "+r.name+" ("+p+" Portion"+(p>1?"en":"") +")");
+  DAYS.forEach(function(day){
+    var dayLines=[];
+    MEALS.forEach(function(meal){
+      var key=day+"__"+meal;
+      if(!S.weekPlan[key]) return;
+      var entry=S.weekPlan[key];
+      var r=entry.recipe||entry;
+      var p=entry.portions||parseInt((r||{}).servings)||1;
+      dayLines.push("  "+MEAL_ICONS[meal]+" "+meal+": "+r.name+" ("+p+"x)");
+    });
+    if(dayLines.length>0){lines.push(day+":");dayLines.forEach(function(l){lines.push(l);});}
   });
   lines.push("","---","Zutaten:","");
   ings.forEach(function(i){lines.push("- "+fmtIng(i));});
@@ -528,7 +541,7 @@ function shopExportText() {
   var entries = getWeekEntries();
   var names = entries.map(function(e){return e.recipe.name+" ("+e.portions+"x)";}).join(", ");
   var ings = mergeWeekIngredients();
-  return ["Einkaufsliste: "+names,""].concat(ings.map(function(i){return "- "+fmtIng(i);})).join("\n");
+  return ["Einkaufsliste für diese Woche","","Gerichte: "+names,""].concat(ings.map(function(i){return "- "+fmtIng(i);})).join("\n");
 }
 
 // ── Nutrition ──────────────────────────────────────────────────────────────
@@ -862,7 +875,9 @@ function tplShopping(){
   entries.forEach(function(entry){
     var r=entry.recipe;
     recipeList+='<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border-radius:10px;border:1.5px solid #E4F2E1;margin-bottom:6px">'
+      +(entry.meal?'<span>'+MEAL_ICONS[entry.meal]+'</span>':"")
       +'<span style="font-weight:600;font-size:14px">'+esc(r.name)+'</span>'
+      +(entry.day?'<span style="font-size:12px;color:var(--text-muted)">'+esc(entry.day)+'</span>':"")
       +'<span style="font-size:12px;color:var(--text-muted);margin-left:auto">'+entry.portions+'x</span></div>';
   });
   recipeList+='</div>';
@@ -888,9 +903,11 @@ function tplShopping(){
 }
 
 // ── Modal ──────────────────────────────────────────────────────────────────
-function openWeekModal(day){
-  S.modalMode="week";S.modalDay=day;
-  document.getElementById("modal-title").textContent=day;
+function openWeekModal(key){
+  S.modalMode="week";S.modalDay=key;
+  var parts=key.split("__");
+  var label=parts[0]+(parts[1]?" – "+parts[1]:"");
+  document.getElementById("modal-title").textContent=label;
   document.getElementById("modal-search").style.display="";
   document.getElementById("modal-search").value="";
   document.getElementById("modal").classList.add("open");
@@ -901,14 +918,21 @@ window.openWeekModal=openWeekModal;
 function openDayModal(recipeId){
   S.modalMode="day";S.modalRecipeId=recipeId;
   var r=S.recipes.find(function(x){return x.id===recipeId;});
-  document.getElementById("modal-title").textContent=(r?r.name:"")+"\u2192 Tag w\u00e4hlen";
+  document.getElementById("modal-title").textContent=(r?r.name:"")+" → einplanen";
   document.getElementById("modal-search").style.display="none";
   document.getElementById("modal").classList.add("open");
   var html="";
   DAYS.forEach(function(day){
-    var entry=S.weekPlan[day];
-    var existing=entry?((entry.recipe||entry).name||""):"";
-    html+='<button class="modal-opt" onclick="assignDay(\''+day+'\')">'+day+(existing?'<span style="font-size:12px;color:var(--text-muted)">'+esc(existing)+'</span>':"")+'</button>';
+    MEALS.forEach(function(meal){
+      var key=day+"__"+meal;
+      var entry=S.weekPlan[key];
+      var existing=entry?((entry.recipe||entry).name||""):"";
+      var safeKey=key.replace(/'/g,"\'");
+      html+='<button class="modal-opt" onclick="assignDay(''+safeKey+'')">'
+        +MEAL_ICONS[meal]+' '+day+' – '+meal
+        +(existing?'<span style="font-size:12px;color:var(--text-muted)">'+esc(existing)+'</span>':"")
+        +'</button>';
+    });
   });
   document.getElementById("modal-list").innerHTML=html;
 }
@@ -931,16 +955,19 @@ window.assignWeek=async function(rid){
   S.weekPlan[S.modalDay]={recipe:r,portions:parseInt(r.servings)||1};
   await fbSaveWeek();window.closeModal();render();
 };
-window.assignDay=async function(day){
+window.removeFromWeek=async function(key){delete S.weekPlan[key];await fbSaveWeek();render();};
+window.assignDay=async function(key){
   var r=S.recipes.find(function(x){return x.id===S.modalRecipeId;});
   if(!r)return;
-  S.weekPlan[day]={recipe:r,portions:parseInt(r.servings)||1};
-  await fbSaveWeek();window.closeModal();toast(r.name+"\u2192"+day+"\u2713");render();
+  S.weekPlan[key]={recipe:r,portions:parseInt(r.servings)||1};
+  await fbSaveWeek();window.closeModal();
+  var parts=key.split("__");
+  toast(r.name+" → "+parts[0]+(parts[1]?" "+parts[1]:"")+" ✓");render();
 };
-window.setWeekPortions=async function(day,val){
-  if(!S.weekPlan[day])return;
-  var entry=S.weekPlan[day];
-  S.weekPlan[day]=Object.assign({},entry,{portions:Math.max(1,parseInt(val)||1)});
+window.setWeekPortions=async function(key,val){
+  if(!S.weekPlan[key])return;
+  var entry=S.weekPlan[key];
+  S.weekPlan[key]=Object.assign({},entry,{portions:Math.max(1,parseInt(val)||1)});
   await fbSaveWeek();render();
 };
 
@@ -956,7 +983,7 @@ window.doDelete=async function(id){
   if(!confirm("Rezept wirklich l\u00f6schen?"))return;
   await fbDeleteRecipe(id);toast("Rezept gel\u00f6scht.");
 };
-window.removeFromWeek=async function(day){delete S.weekPlan[day];await fbSaveWeek();render();};
+
 window.addIng=function(){
   var el=document.getElementById("ing-list");var id=uid();
   var div=document.createElement("div");div.className="ing-row";div.dataset.ing=id;
