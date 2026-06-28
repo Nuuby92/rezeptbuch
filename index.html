@@ -1697,7 +1697,10 @@ function tplShopping(){
   var allItems = '';
 
   if (ings.length > 0) {
-    shopBringItems = JSON.stringify(ings.map(function(i){return {name:i.name,amount:[i.amount,i.unit].filter(Boolean).join(" ")};}));
+    var bringItems = ings.map(function(i){return {name:i.name,amount:[i.amount,i.unit].filter(Boolean).join(" ")};});
+    // Weine auch zur Bring-Liste hinzufügen
+    S.wineList.forEach(function(w){ bringItems.push({name:w.label, amount:"1 Flasche"}); });
+    shopBringItems = JSON.stringify(bringItems);
     ings.forEach(function(i){
       var key=i.name+"__"+(i.unit||"");
       var done=!!S.shopChecked[key];
