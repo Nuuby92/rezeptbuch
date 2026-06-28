@@ -164,10 +164,8 @@
     .spinner { width: 36px; height: 36px; border: 3px solid var(--green-light); border-top-color: var(--green-dark); border-radius: 50%; animation: spin .7s linear infinite; }
     .spinner-sm { width: 18px; height: 18px; border-width: 2px; display: inline-block; vertical-align: middle; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .logout-icon { display: none; }
-    @media (max-width: 540px) {
-      .logout-text { display: none; }
-      .logout-icon { display: inline; font-size: 16px; }
+    @media (max-width: 600px) {
+      .user-email { display: none; }
       .form-grid { grid-template-columns: 1fr; }
       .combined-items { columns: 1; }
       .ing-row { grid-template-columns: 60px 80px 1fr 28px; }
@@ -234,7 +232,7 @@
       </nav>
       <div class="user-info">
         <span class="user-email" id="user-email-display"></span>
-        <button class="btn btn-ghost btn-sm" onclick="doLogout()" title="Abmelden"><span class="logout-text">Abmelden</span><span class="logout-icon">&#x2192;</span></button>
+        <button class="btn btn-ghost btn-sm" onclick="confirmLogout()" title="Abmelden">Abmelden</button>
       </div>
     </div>
   </header>
@@ -401,6 +399,12 @@ window.submitAuth = async function() {
   }
 };
 
+window.confirmLogout = function() {
+  if (confirm("Wirklich abmelden?")) window.doLogout();
+};
+window.confirmLogout = function() {
+  if (confirm("Wirklich abmelden?")) window.doLogout();
+};
 window.doLogout = async function() {
   if (unsubRecipes) { unsubRecipes(); unsubRecipes = null; }
   await signOut(auth);
@@ -742,6 +746,49 @@ window.switchTab=function(tab){
   ["recipes","week","shopping"].forEach(function(t){document.getElementById("nav-"+t).classList.toggle("active",t===tab);});
   render();
 };
+
+// ── Substitute modal ──────────────────────────────────────────────────────
+var _subData = [];
+
+window.triggerSub = function(btn) {
+  var idx = parseInt(btn.getAttribute("data-idx"));
+  var d = _subData[idx];
+  if (d) window.openSubModal(d.ingredient, d.amount, d.unit, d.recipeName, d.others);
+};
+
+window.openSubModal = async function(ingredient, amount, unit, recipeName, otherIngs) {
+  var modal = document.getElementById("sub-modal");
+  var cnt = document.getElementById("sub-modal-content");
+  var title = document.getElementById("sub-modal-title");
+  if (!modal || !cnt) return;
+  title.textContent = "Alternativen für " + ingredient;
+  cnt.innerHTML = '<div style="display:flex;align-items:center;gap:8px;color:var(--text-muted);font-size:14px"><div class="spinner spinner-sm"></div> Alternativen werden gesucht…</div>';
+  modal.classList.add("open");
+  try {
+    var res = await fetch("/api/substitute", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ingredient: ingredient, amount: amount, unit: unit, recipeName: recipeName, recipeIngredients: otherIngs }),
+    });
+    var data = await res.json();
+    if (!res.ok || !data.alternatives) {
+      cnt.innerHTML = '<p style="color:var(--danger);font-size:14px">' + esc(data.error||"Fehler.") + '</p>';
+      return;
+    }
+    var html = "";
+    data.alternatives.forEach(function(alt) {
+      html += '<div class="alt-card"><div class="alt-name">' + esc(alt.name) + '</div>'
+        + (alt.amount ? '<div class="alt-amount">Menge: ' + esc(alt.amount) + '</div>' : '')
+        + '<div class="alt-note">' + esc(alt.note) + '</div></div>';
+    });
+    cnt.innerHTML = html;
+  } catch(e) {
+    cnt.innerHTML = '<p style="color:var(--danger);font-size:14px">Fehler: ' + esc(e.message) + '</p>';
+  }
+};
+
+window.closeSubModal = function() { var m=document.getElementById("sub-modal"); if(m) m.classList.remove("open"); };
+window.onSubModalBgClick = function(e) { if(e.target===document.getElementById("sub-modal")) window.closeSubModal(); };
 
 // ── Render ─────────────────────────────────────────────────────────────────
 function pushState(){
