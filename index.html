@@ -239,8 +239,14 @@
         </button>
       </nav>
       <div class="user-info">
-        <span class="user-email" id="user-email-display"></span>
-        <button class="btn btn-ghost btn-sm" onclick="confirmLogout()" title="Abmelden">Abmelden</button>
+        <button class="user-avatar" id="user-avatar-btn" onclick="toggleUserMenu()"></button>
+        <div class="user-dropdown" id="user-dropdown">
+          <div class="user-dropdown-email" id="user-email-display"></div>
+          <button class="user-dropdown-btn" style="color:var(--text);margin-bottom:2px" onclick="openStatsModal()">&#128202; Statistiken</button>
+          <button class="user-dropdown-btn" style="color:var(--text);margin-bottom:2px" onclick="openPwModal()">&#128274; Passwort &auml;ndern</button>
+          <div style="border-top:1px solid var(--border);margin:6px 0"></div>
+          <button class="user-dropdown-btn" onclick="confirmLogout()">&#x2192; Abmelden</button>
+        </div>
       </div>
     </div>
   </header>
