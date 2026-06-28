@@ -543,6 +543,11 @@ onAuthStateChanged(auth, function(user) {
 
 // ── Init after login ───────────────────────────────────────────────────────
 function initApp() {
+  // Fix nav highlight based on current tab
+  ["recipes","week","shopping"].forEach(function(t) {
+    var el = document.getElementById("nav-"+t);
+    if (el) el.classList.toggle("active", t===S.tab);
+  });
   // Load recipes (shared)
   if (unsubRecipes) unsubRecipes();
   unsubRecipes = onSnapshot(collection(db, "recipes"), function(snap) {
@@ -1671,7 +1676,9 @@ function tplWeek(){
 function makeShopItem(key, label, done) {
   var div = document.createElement('div');
   div.className = 'shop-item' + (done ? ' done' : '');
-  div.innerHTML = '<div class="chk' + (done ? ' on' : '') + '">' + (done ? '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>' : '') + ' </div><span>' + key.replace(/__.*/, '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</span>';
+  var checkSvg = done ? '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>' : '';
+  div.setAttribute('data-key', key);
+  div.innerHTML = '<div class="chk' + (done ? ' on' : '') + '">' + checkSvg + '</div><span>' + label.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</span>';
   div.onclick = function() { window.toggleShopI(key); };
   return div.outerHTML;
 }
@@ -1712,7 +1719,7 @@ function tplShopping(){
     ings.forEach(function(i){
       var key=i.name+"__"+(i.unit||"");
       var done=!!S.shopChecked[key];
-      allItems+=makeShopItem(key, fmtIng(i), done);
+      allItems+=makeShopItem(key, fmtIng(i)||i.name, done);
     });
   }
 
@@ -1936,7 +1943,21 @@ window.doDetailToWeek=function(){if(!S.viewing)return;S._pendingPortions=S.scale
 window.toggleShopI=function(key){
   S.shopChecked[key]=!S.shopChecked[key];
   fbSaveShopChecked();
-  renderOnly();
+  // Update just the clicked item visually
+  var ings = mergeWeekIngredients();
+  var ing = ings.find(function(i){ return (i.name+"__"+(i.unit||""))===key; });
+  var done = !!S.shopChecked[key];
+  // Find and update the div
+  var allDivs = document.querySelectorAll('.shop-item');
+  allDivs.forEach(function(div) {
+    if (div.getAttribute('data-key') === key) {
+      div.className = 'shop-item' + (done?' done':'');
+      var chk = div.querySelector('.chk');
+      if (chk) { chk.className='chk'+(done?' on':''); chk.innerHTML=done?svg(I.check,11):''; }
+    }
+  });
+  // Full re-render to be safe
+  if (S.tab==='shopping') renderOnly();
 };
 window.toggleWineItem=function(idx){if(S.wineList[idx])S.wineList[idx].done=!S.wineList[idx].done;fbSaveWineList();renderOnly();};
 window.removeWineItem=function(idx){S.wineList.splice(idx,1);fbSaveWineList();renderOnly();};
