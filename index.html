@@ -1674,13 +1674,13 @@ function tplWeek(){
   return '<div class="section-hd"><h2>Wochenplan</h2>'+exportBtns+'</div>'+rows+combined;
 }
 function makeShopItem(key, label, done) {
-  var div = document.createElement('div');
-  div.className = 'shop-item' + (done ? ' done' : '');
+  var safeKey = key.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   var checkSvg = done ? '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>' : '';
-  div.setAttribute('data-key', key);
-  div.innerHTML = '<div class="chk' + (done ? ' on' : '') + '">' + checkSvg + '</div><span>' + label.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</span>';
-  div.onclick = function() { window.toggleShopI(key); };
-  return div.outerHTML;
+  var safeLabel = label.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return '<div class="shop-item' + (done?' done':'') + '" data-key="' + key.replace(/"/g,'&quot;') + '" onclick="toggleShopI(\'' + safeKey + '\')">'
+    + '<div class="chk' + (done?' on':'') + '">' + checkSvg + '</div>'
+    + '<span>' + safeLabel + '</span>'
+    + '</div>';
 }
 
 function tplShopping(){
