@@ -178,6 +178,15 @@
     .filter-section:last-child { margin-bottom:0; }
     .filter-section-label { font-size:10px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px; }
     .filter-tags { display:flex;flex-wrap:wrap;gap:5px; }
+    .wine-box { margin-top:20px; }
+    .wine-card { background:linear-gradient(135deg,#FDF2F8,#FAF5FF); border:1.5px solid #E9D5FF; border-radius:12px; padding:14px 16px; margin-bottom:10px; }
+    .wine-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; }
+    .wine-type { font-weight:800; font-size:15px; color:#581C87; }
+    .wine-price { font-size:13px; font-weight:700; color:#7C3AED; background:#EDE9FE; padding:2px 8px; border-radius:10px; }
+    .wine-grape { font-size:12px; color:#7C3AED; font-weight:600; margin-bottom:4px; }
+    .wine-region { font-size:12px; color:#6B7280; margin-bottom:6px; }
+    .wine-note { font-size:13px; color:#374151; line-height:1.5; }
+    .wine-loading { display:flex; align-items:center; gap:8px; color:var(--text-muted); font-size:14px; padding:12px 0; }
     #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--green-darkest); color: #fff; padding: 10px 22px; border-radius: 999px; font-size: 14px; font-weight: 600; z-index: 300; transition: transform .25s; pointer-events: none; white-space: nowrap; }
     #toast.show { transform: translateX(-50%) translateY(0); }
     #loading { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 500; gap: 16px; }
@@ -933,13 +942,6 @@ function filterPanel() {
     });
     html += '</div></div>';
   });
-  var uncategorized = S.recipes.filter(function(r){ return !r.tags || r.tags.length === 0; }).length;
-  if (uncategorized > 0) {
-    html += '<div style="padding-top:10px;border-top:1px solid var(--border);margin-top:4px">';
-    html += '<p style="font-size:12px;color:var(--text-muted);margin-bottom:6px">'+uncategorized+' Rezepte noch ohne Tags</p>';
-    html += '<button class="btn btn-secondary btn-sm" onclick="categorizeAll()">&#10024; Alle automatisch kategorisieren</button>';
-    html += '</div>';
-  }
   html += '</div>';
   return html;
 }
@@ -1331,6 +1333,53 @@ function dayNutritionHtml(day) {
     +'</div>';
 }
 
+// ── Wine recommendation ────────────────────────────────────────────────────
+var _wineCache = {};
+
+window.loadWineRecommendation = async function() {
+  var r = S.viewing; if (!r) return;
+  var el = document.getElementById("wine-box");
+  if (!el) return;
+
+  var cacheKey = r.id;
+  if (_wineCache[cacheKey]) {
+    el.innerHTML = wineBoxHtml(_wineCache[cacheKey]);
+    return;
+  }
+
+  el.innerHTML = '<div class="wine-loading"><div class="spinner spinner-sm"></div> Weinempfehlung wird geladen…</div>';
+
+  try {
+    var res = await fetch("/api/wine", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: r.name, description: r.description, ingredients: r.ingredients, tags: r.tags }),
+    });
+    var data = await res.json();
+    if (!res.ok || !data.wines) {
+      el.innerHTML = '<p style="font-size:13px;color:var(--text-muted)">Keine Empfehlung verfügbar.</p>';
+      return;
+    }
+    _wineCache[cacheKey] = data.wines;
+    el.innerHTML = wineBoxHtml(data.wines);
+  } catch(e) {
+    el.innerHTML = '<p style="font-size:13px;color:var(--danger)">Fehler: ' + e.message + '</p>';
+  }
+};
+
+function wineBoxHtml(wines) {
+  var html = '';
+  wines.forEach(function(w) {
+    html += '<div class="wine-card">'
+      + '<div class="wine-header"><span class="wine-type">&#127863; ' + esc(w.type) + '</span><span class="wine-price">' + esc(w.price) + '</span></div>'
+      + '<div class="wine-grape">' + esc(w.grape) + '</div>'
+      + '<div class="wine-region">&#128205; ' + esc(w.region) + '</div>'
+      + '<div class="wine-note">' + esc(w.note) + '</div>'
+      + '</div>';
+  });
+  return html;
+}
+
 // ── Render ─────────────────────────────────────────────────────────────────
 function pushState(){
   var state={tab:S.tab,view:S.view,viewingId:S.viewing?S.viewing.id:null};
@@ -1475,6 +1524,7 @@ function tplDetail(){
     +'<button class="btn btn-secondary" onclick="doDetailToWeek()">'+svg(I.cal)+' Zum Wochenplan</button>'
     +'</div>'
     +allergenBoxHtml(ings)
+    +'<div class="wine-box"><p style="font-size:11px;font-weight:800;color:#581C87;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">&#127863; Weinempfehlung</p><div id="wine-box"><button class="btn" style="background:#FAF5FF;color:#7C3AED;border:1.5px solid #E9D5FF" onclick="loadWineRecommendation()">&#127863; Weinempfehlung anzeigen</button></div></div>'
     +'</div>';
 }
 
@@ -1712,27 +1762,7 @@ window.debouncedSearch=function(q){
 };
 
 // ── Batch categorize all recipes ──────────────────────────────────────────
-window.categorizeAll = async function() {
-  var uncategorized = S.recipes.filter(function(r){ return !r.tags || r.tags.length === 0; });
-  if (uncategorized.length === 0) { toast("Alle Rezepte sind bereits kategorisiert ✓"); return; }
-  toast("Kategorisiere " + uncategorized.length + " Rezepte…");
-  var done = 0;
-  for (var i = 0; i < uncategorized.length; i++) {
-    var r = uncategorized[i];
-    try {
-      var tags = await autoCategorizRecipe(r);
-      if (tags.length > 0) {
-        var data = Object.assign({}, r); delete data.id;
-        data.tags = tags;
-        var { setDoc, doc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
-        await setDoc(doc(db, "recipes", r.id), data);
-        done++;
-        toast(done + "/" + uncategorized.length + " kategorisiert…");
-      }
-    } catch(e) {}
-  }
-  toast(done + " Rezepte kategorisiert ✓");
-};
+
 window.doEdit=function(id){S.editing=S.recipes.find(function(r){return r.id===id;});S.view="form";render();};
 window.doView=function(id){S.viewing=S.recipes.find(function(r){return r.id===id;});S.nutrition=null;S.scaledPortions=null;S.view="detail";render();};
 window.doDelete=async function(id){
