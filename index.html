@@ -1630,6 +1630,14 @@ function tplWeek(){
 
   return '<div class="section-hd"><h2>Wochenplan</h2>'+exportBtns+'</div>'+rows+combined;
 }
+function makeShopItem(key, label, done) {
+  var div = document.createElement('div');
+  div.className = 'shop-item' + (done ? ' done' : '');
+  div.innerHTML = '<div class="chk' + (done ? ' on' : '') + '">' + (done ? '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>' : '') + ' </div><span>' + key.replace(/__.*/, '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</span>';
+  div.onclick = function() { window.toggleShopI(key); };
+  return div.outerHTML;
+}
+
 function tplShopping(){
   var entries=getWeekEntries(); var ings=mergeWeekIngredients();
 
@@ -1663,7 +1671,7 @@ function tplShopping(){
     ings.forEach(function(i){
       var key=i.name+"__"+(i.unit||"");
       var done=!!S.shopChecked[key];
-      allItems+='<div class="shop-item'+(done?' done':'')+'" onclick="toggleShopI(\x27'+key.replace(/\\/g,'\\\\').replace(/'/g,"\\x27")+'\x27)"><div class="chk'+(done?' on':'')+'">'+(done?svg(I.check,11):'')+' </div><span>'+esc(fmtIng(i))+'</span></div>';
+      allItems+=makeShopItem(key, fmtIng(i), done);
     });
   }
 
