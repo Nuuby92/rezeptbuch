@@ -560,6 +560,11 @@ function initApp() {
     else S.wineList = [];
     renderOnly();
   });
+  getDoc(doc(db, "users", S.user.uid, "shopchecked", "current")).then(function(d) {
+    if (d.exists() && d.data().checked) S.shopChecked = d.data().checked;
+    else S.shopChecked = {};
+    renderOnly();
+  });
 }
 
 // ── Firebase ───────────────────────────────────────────────────────────────
@@ -586,6 +591,9 @@ async function fbDeleteRecipe(id) {
 
 async function fbSaveWeek() {
   await setDoc(doc(db, "users", S.user.uid, "weekplan", "current"), S.weekPlan);
+}
+async function fbSaveShopChecked() {
+  try { await setDoc(doc(db, "users", S.user.uid, "shopchecked", "current"), { checked: S.shopChecked }); } catch(e) {}
 }
 async function fbSaveWineList() {
   try {
@@ -1925,12 +1933,24 @@ window.doDlDetail=function(){
   dlTxt("Einkaufsliste_"+r.name.replace(/\s+/g,"_")+".txt",txt);
 };
 window.doDetailToWeek=function(){if(!S.viewing)return;S._pendingPortions=S.scaledPortions||parseInt(S.viewing.servings)||1;openDayModal(S.viewing.id);};
-window.toggleShopI=function(key){S.shopChecked[key]=!S.shopChecked[key];render();};
+window.toggleShopI=function(key){
+  S.shopChecked[key]=!S.shopChecked[key];
+  fbSaveShopChecked();
+  renderOnly();
+};
 window.toggleWineItem=function(idx){if(S.wineList[idx])S.wineList[idx].done=!S.wineList[idx].done;fbSaveWineList();renderOnly();};
 window.removeWineItem=function(idx){S.wineList.splice(idx,1);fbSaveWineList();renderOnly();};
 window.clearWineList=function(){S.wineList=[];fbSaveWineList();renderOnly();};
 
-history.replaceState({tab:"recipes",view:"list",viewingId:null},"","?tab=recipes");
+// Read tab from URL on page load
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var urlTab = params.get("tab");
+  if (urlTab && ["recipes","week","shopping"].indexOf(urlTab) >= 0) {
+    S.tab = urlTab;
+  }
+})();
+history.replaceState({tab:S.tab,view:"list",viewingId:null},"","?tab="+S.tab);
 </script>
 </body>
 </html>
