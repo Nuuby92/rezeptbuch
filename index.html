@@ -331,6 +331,7 @@ var S = {
   modalMode: "week", modalDay: null, modalRecipeId: null,
   bringItems: [],
   nutrition: null, nutritionTab: "portion", nutritionLoading: false,
+  scaledPortions: null,
 };
 var DAYS = ["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
 var MEALS = ["Frühstück","Mittagessen","Abendessen"];
@@ -545,6 +546,28 @@ function shopExportText() {
 }
 
 // ── Nutrition ──────────────────────────────────────────────────────────────
+async function loadNutritionScaled(recipe, portions) {
+  S.nutrition=null; S.nutritionLoading=true; renderNutritionBox();
+  try {
+    var ings=(recipe.ingredients||[]).filter(function(i){return i.name;}).map(function(i){return {name:i.name,amount:i.amount,unit:i.unit};});
+    var res=await fetch("/api/nutrition",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ingredients:ings,servings:recipe.servings||1})});
+    var data=await res.json();
+    if (res.ok && portions && parseInt(recipe.servings) && portions !== parseInt(recipe.servings)) {
+      var base=parseInt(recipe.servings);
+      var scale=portions/base;
+      data.perServing={
+        kcal:Math.round(data.total.kcal/portions),
+        protein:Math.round(data.total.protein/portions*10)/10,
+        carbs:Math.round(data.total.carbs/portions*10)/10,
+        fat:Math.round(data.total.fat/portions*10)/10,
+      };
+      data.servings=portions;
+    }
+    S.nutrition=res.ok?data:{error:data.error||"Fehler"};
+  } catch(e){S.nutrition={error:e.message};}
+  S.nutritionLoading=false; renderNutritionBox();
+}
+
 async function loadNutrition(recipe) {
   S.nutrition=null; S.nutritionLoading=true; renderNutritionBox();
   try {
@@ -768,24 +791,38 @@ function tplDetail(){
   var r=S.viewing; if(!r) return "";
   var ings=(r.ingredients||[]).filter(function(i){return i.name;});
   var steps=(r.steps||[]).filter(function(s){return s.text;});
-  var ingRows="";
-  ings.forEach(function(i){ingRows+='<li><span class="ing-dot"></span><span class="ing-amount">'+esc([i.amount,i.unit].filter(Boolean).join(" ")||"\u2014")+'</span><span>'+esc(i.name)+'</span></li>';});
+  var basePortions = parseInt(r.servings)||1;
+  var scaledBase = S.scaledPortions || basePortions;
+  var scaledIngRows="";
+  ings.forEach(function(i){
+    var amt=scaleAmount(i.amount,basePortions,scaledBase);
+    scaledIngRows+='<li><span class="ing-dot"></span><span class="ing-amount">'+esc([amt,i.unit].filter(Boolean).join(" ")||"\u2014")+'</span><span>'+esc(i.name)+'</span></li>';
+  });
+  var ingRows=scaledIngRows;
   var stepRows="";
   steps.forEach(function(s,idx){stepRows+='<li class="step-item"><div class="step-num">'+(idx+1)+'</div><p class="step-text">'+esc(s.text)+'</p></li>';});
   var bringItems=JSON.stringify(ings.map(function(i){return {name:i.name,amount:[i.amount,i.unit].filter(Boolean).join(" ")};}));
   var owner=isOwner(r);
-  setTimeout(function(){loadNutrition(r);},50);
+  var _r=r; var _scaled=scaledBase; setTimeout(function(){loadNutritionScaled(_r,_scaled);},50);
   return '<button class="btn btn-ghost btn-sm" onclick="doBack()" style="margin-bottom:20px">'+svg(I.back)+' Zur&uuml;ck</button>'
     +'<div class="card detail-card">'
     +'<h1 class="detail-title">'+esc(r.name)+'</h1>'
     +(r.description?'<p class="detail-desc">'+esc(r.description)+'</p>':"")
     +'<div class="detail-meta">'
-    +(r.servings?'<span>'+svg(I.users,16)+' '+esc(r.servings)+' Portionen</span>':"")
     +(r.prepTime?'<span>'+svg(I.clock,16)+' '+esc(r.prepTime)+'</span>':"")
     +(r.createdByName?'<span style="font-size:12px;color:var(--text-muted)">von '+esc(r.createdByName)+'</span>':"")
     +'</div>'
+    +'<div style="display:flex;align-items:center;gap:14px;background:var(--green-faint);border-radius:12px;padding:14px 18px;margin-bottom:24px;flex-wrap:wrap">'
+    +'<span style="font-size:13px;font-weight:700;color:var(--green-darkest)">'+svg(I.users,15)+' Portionen:</span>'
+    +'<div style="display:flex;align-items:center;gap:8px">'
+    +'<button onclick="setScaledPortions('+(scaledBase-1>0?scaledBase-1:1)+')" style="width:30px;height:30px;border-radius:50%;border:1.5px solid var(--border);background:var(--surface);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:700;color:var(--green-dark)">&#8722;</button>'
+    +'<span id="portions-display" style="font-size:18px;font-weight:800;color:var(--green-darkest);min-width:28px;text-align:center">'+scaledBase+'</span>'
+    +'<button onclick="setScaledPortions('+(scaledBase+1)+')" style="width:30px;height:30px;border-radius:50%;border:1.5px solid var(--border);background:var(--surface);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:700;color:var(--green-dark)">&#43;</button>'
+    +'</div>'
+    +(scaledBase !== basePortions ? '<span style="font-size:12px;color:var(--text-muted)">(Originalrezept: '+basePortions+' Portion'+(basePortions>1?'en':'')+')</span>' : '')
+    +'</div>'
     +'<div class="nutrition-box" id="nutrition-box"><div class="nutrition-loading"><div class="spinner spinner-sm"></div> N&auml;hrwerte werden berechnet&hellip;</div></div>'
-    +'<p class="section-label">Zutaten</p><ul class="ingredient-list">'+ingRows+'</ul>'
+    +'<p class="section-label">Zutaten</p><ul class="ingredient-list" id="scaled-ingredients">'+scaledIngRows+'</ul>'
     +'<p class="section-label">Zubereitung</p><ol class="steps-list">'+stepRows+'</ol>'
     +'<div class="detail-actions">'
     +(owner?'<button class="btn btn-secondary" onclick="doEdit(\''+r.id+'\')">'+svg(I.edit)+' Bearbeiten</button>':"")
@@ -965,7 +1002,9 @@ window.removeFromWeek=async function(key){delete S.weekPlan[key];await fbSaveWee
 window.assignDay=async function(key){
   var r=S.recipes.find(function(x){return x.id===S.modalRecipeId;});
   if(!r)return;
-  S.weekPlan[key]={recipe:r,portions:parseInt(r.servings)||1};
+  var portions=S._pendingPortions||parseInt(r.servings)||1;
+  S._pendingPortions=null;
+  S.weekPlan[key]={recipe:r,portions:portions};
   await fbSaveWeek();window.closeModal();
   var parts=key.split("__");
   toast(r.name+" → "+parts[0]+(parts[1]?" "+parts[1]:"")+" ✓");render();
@@ -978,11 +1017,47 @@ window.setWeekPortions=async function(key,val){
 };
 
 // ── Actions ────────────────────────────────────────────────────────────────
+window.setScaledPortions=function(val){
+  S.scaledPortions=Math.max(1,parseInt(val)||1);
+  var pd=document.getElementById("portions-display");
+  if(pd) pd.textContent=S.scaledPortions;
+  // Update minus button
+  var btns=document.querySelectorAll("[onclick^='setScaledPortions']");
+  btns.forEach(function(btn){
+    var v=parseInt(btn.getAttribute("onclick").replace("setScaledPortions(","").replace(")",""));
+    btn.setAttribute("onclick","setScaledPortions("+(S.scaledPortions+(btn.textContent.includes("+")?1:-1))+")");
+  });
+  renderScaledIngredients();
+  if(S.viewing) loadNutritionScaled(S.viewing, S.scaledPortions);
+};
+
+function scaleAmount(amount, basePortions, scaled) {
+  var num = parseFloat(amount);
+  if (!num || !basePortions || !scaled) return amount;
+  var result = num * scaled / basePortions;
+  return result % 1 === 0 ? String(result) : result.toFixed(1).replace(/\.0$/,"");
+}
+
+function renderScaledIngredients() {
+  var el = document.getElementById("scaled-ingredients");
+  if (!el || !S.viewing) return;
+  var r = S.viewing;
+  var base = parseInt(r.servings) || 1;
+  var scaled = S.scaledPortions || base;
+  var ings = (r.ingredients||[]).filter(function(i){return i.name;});
+  var html = "";
+  ings.forEach(function(i){
+    var amt = scaleAmount(i.amount, base, scaled);
+    html += '<li><span class="ing-dot"></span><span class="ing-amount">'+esc([amt,i.unit].filter(Boolean).join(" ")||"\u2014")+'</span><span>'+esc(i.name)+'</span></li>';
+  });
+  el.innerHTML = html;
+}
+
 window.doNew=function(){S.editing=null;S.view="form";render();};
 window.doBack=function(){if(history.length>1){history.back();}else{S.view="list";S.editing=null;S.viewing=null;S.nutrition=null;render();}};
 window.doSearch=function(q){S.search=q;render();};
 window.doEdit=function(id){S.editing=S.recipes.find(function(r){return r.id===id;});S.view="form";render();};
-window.doView=function(id){S.viewing=S.recipes.find(function(r){return r.id===id;});S.nutrition=null;S.view="detail";render();};
+window.doView=function(id){S.viewing=S.recipes.find(function(r){return r.id===id;});S.nutrition=null;S.scaledPortions=null;S.view="detail";render();};
 window.doDelete=async function(id){
   var r=S.recipes.find(function(x){return x.id===id;});
   if(!r||!isOwner(r)){toast("Nur der Ersteller kann dieses Rezept l\u00f6schen.");return;}
@@ -1040,7 +1115,7 @@ window.doDlDetail=function(){
   var txt=["Einkaufsliste: "+r.name,""].concat(ings.map(function(i){return "- "+fmtIng(i);})).join("\n");
   dlTxt("Einkaufsliste_"+r.name.replace(/\s+/g,"_")+".txt",txt);
 };
-window.doDetailToWeek=function(){if(!S.viewing)return;openDayModal(S.viewing.id);};
+window.doDetailToWeek=function(){if(!S.viewing)return;S._pendingPortions=S.scaledPortions||parseInt(S.viewing.servings)||1;openDayModal(S.viewing.id);};
 window.toggleShopI=function(key){S.shopChecked[key]=!S.shopChecked[key];render();};
 
 history.replaceState({tab:"recipes",view:"list",viewingId:null},"","?tab=recipes");
