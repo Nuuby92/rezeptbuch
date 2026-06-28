@@ -1663,25 +1663,7 @@ function tplShopping(){
     ings.forEach(function(i){
       var key=i.name+"__"+(i.unit||"");
       var done=!!S.shopChecked[key];
-      allItems+='<div class="shop-item'+(done?" done":"")+'" onclick="toggleShopI(''+key.replace(/\/g,"\\").replace(/'/g,"\'")+'')"><div class="chk'+(done?" on":"")+'">'+(done?svg(I.check,11):'')+' </div><span>'+esc(fmtIng(i))+'</span></div>';
-    });
-  }
-
-  // ── Weine Box ────────────────────────────────────────────────────────────
-  if (S.wineList.length > 0) {
-    if (allItems) allItems += '<div style="height:1px;background:var(--border);margin:10px 0"></div>'
-      + '<p style="font-size:11px;font-weight:800;color:#581C87;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">&#127863; Weine ('+S.wineList.length+')</p>';
-    else allItems += '<p style="font-size:11px;font-weight:800;color:#581C87;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">&#127863; Weine ('+S.wineList.length+')</p>';
-
-    S.wineList.forEach(function(w, idx){
-      var done = w.done;
-      allItems += '<div class="shop-item'+(done?' done':'')+'" onclick="toggleWineItem('+idx+')">'
-        +'<div class="chk'+(done?' on':'')+'">'+( done?svg(I.check,11):'')+' </div>'
-        +'<div style="flex:1"><span>'+esc(w.label)+'</span>'
-        +(w.region?'<span style="font-size:11px;color:var(--text-muted);display:block">'+esc(w.region)+'</span>':"")
-        +'</div>'
-        +'<button onclick="removeWineItem('+idx+');event.stopPropagation()" style="background:none;border:none;cursor:pointer;color:#9CA3AF;padding:4px;flex-shrink:0">'+svg(I.x,14)+'</button>'
-        +'</div>';
+      allItems+='<div class="shop-item'+(done?' done':'')+'" onclick="toggleShopI(\x27'+key.replace(/\\/g,'\\\\').replace(/'/g,"\\x27")+'\x27)"><div class="chk'+(done?' on':'')+'">'+(done?svg(I.check,11):'')+' </div><span>'+esc(fmtIng(i))+'</span></div>';
     });
   }
 
