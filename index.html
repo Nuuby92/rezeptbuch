@@ -77,7 +77,7 @@
     .detail-meta { display: flex; gap: 18px; flex-wrap: wrap; padding-bottom: 20px; border-bottom: 1.5px solid var(--green-faint); margin-bottom: 24px; }
     .detail-meta span { display: flex; align-items: center; gap: 7px; font-size: 14px; color: var(--text-sub); }
     .ingredient-list { list-style: none; margin-bottom: 28px; }
-    .ingredient-list li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--green-faint); font-size: 15px; }
+    .ingredient-list li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--green-faint); font-size: 15px; flex-wrap: nowrap; }
     .ing-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green-mid); flex-shrink: 0; }
     .ing-amount { font-weight: 600; min-width: 80px; color: var(--green-darkest); }
     .steps-list { list-style: none; margin-bottom: 32px; }
@@ -152,6 +152,12 @@
     .bring-status.ok { color: var(--green-dark); font-weight: 600; }
     .bring-status.err { color: var(--danger); }
     .bring-saved { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .sub-btn { background: var(--green-faint); border: 1px solid var(--border); border-radius: 6px; padding: 2px 7px; font-size: 11px; font-weight: 700; color: var(--green-dark); cursor: pointer; margin-left: auto; flex-shrink: 0; white-space: nowrap; transition: background .12s; }
+    .sub-btn:hover { background: var(--green-light); }
+    .alt-card { background: var(--green-faint); border: 1.5px solid var(--border); border-radius: 12px; padding: 14px; }
+    .alt-name { font-weight: 700; font-size: 15px; color: var(--green-darkest); margin-bottom: 4px; }
+    .alt-amount { font-size: 12px; font-weight: 600; color: var(--green-dark); margin-bottom: 6px; }
+    .alt-note { font-size: 13px; color: var(--text-sub); line-height: 1.5; }
     #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--green-darkest); color: #fff; padding: 10px 22px; border-radius: 999px; font-size: 14px; font-weight: 600; z-index: 300; transition: transform .25s; pointer-events: none; white-space: nowrap; }
     #toast.show { transform: translateX(-50%) translateY(0); }
     #loading { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 500; gap: 16px; }
@@ -267,6 +273,19 @@
       <button class="btn btn-secondary" onclick="closeBringModal()">Abbrechen</button>
       <button class="btn btn-bring" id="bring-submit-btn" onclick="submitBring()">&#127819; Hinzuf&uuml;gen</button>
     </div>
+  </div>
+</div>
+
+<!-- Substitute modal -->
+<div class="modal-overlay" id="sub-modal" onclick="onSubModalBgClick(event)">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-hd">
+      <h3 id="sub-modal-title">&#129300; Alternativen</h3>
+      <button class="btn btn-ghost btn-icon" onclick="closeSubModal()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div id="sub-modal-content" style="display:flex;flex-direction:column;gap:10px;min-height:80px"></div>
   </div>
 </div>
 
@@ -794,9 +813,16 @@ function tplDetail(){
   var basePortions = parseInt(r.servings)||1;
   var scaledBase = S.scaledPortions || basePortions;
   var scaledIngRows="";
+  var otherIngs=ings.map(function(i){return i.name;});
   ings.forEach(function(i){
     var amt=scaleAmount(i.amount,basePortions,scaledBase);
-    scaledIngRows+='<li><span class="ing-dot"></span><span class="ing-amount">'+esc([amt,i.unit].filter(Boolean).join(" ")||"\u2014")+'</span><span>'+esc(i.name)+'</span></li>';
+    var safeIng=i.name.replace(/'/g,"\\x27");
+    var safeAmt=(amt||"").replace(/'/g,"\\x27");
+    var safeUnit=(i.unit||"").replace(/'/g,"\\x27");
+    var safeName=(r.name||"").replace(/'/g,"\\x27");
+    var safeOthers=JSON.stringify(otherIngs.filter(function(n){return n!==i.name;}));
+    scaledIngRows+='<li><span class="ing-dot"></span><span class="ing-amount">'+esc([amt,i.unit].filter(Boolean).join(" ")||"\u2014")+'</span><span style="flex:1">'+esc(i.name)+'</span>'
+      +'<button class="sub-btn" onclick="openSubModal(\x27'+safeIng+'\x27,\x27'+safeAmt+'\x27,\x27'+safeUnit+'\x27,\x27'+safeName+'\x27,'+safeOthers+')">Ersetzen?</button></li>';
   });
   var ingRows=scaledIngRows;
   var stepRows="";
