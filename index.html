@@ -433,6 +433,7 @@ var S = {
   shopChecked: {},
   activeFilters: [],
   filterOpen: false,
+  wineList: [],
   modalMode: "week", modalDay: null, modalRecipeId: null,
   bringItems: [],
   nutrition: null, nutritionTab: "portion", nutritionLoading: false,
@@ -1367,14 +1368,30 @@ window.loadWineRecommendation = async function() {
   }
 };
 
+window.addWineToList = function(grape, type, region) {
+  var label = grape + (type ? ' (' + type + ')' : '');
+  var exists = S.wineList.some(function(w){ return w.label === label; });
+  if (exists) { toast(label + ' bereits auf der Liste'); return; }
+  S.wineList.push({ label: label, region: region, done: false });
+  toast('✓ ' + label + ' zur Einkaufsliste hinzugefügt');
+  // Update shopping list if visible
+  if (S.tab === 'shopping') renderOnly();
+};
+
 function wineBoxHtml(wines) {
   var html = '';
   wines.forEach(function(w) {
+    var safeGrape = (w.grape||'').replace(/'/g, "\'");
+    var safeType = (w.type||'').replace(/'/g, "\'");
+    var safeRegion = (w.region||'').replace(/'/g, "\'");
     html += '<div class="wine-card">'
       + '<div class="wine-header"><span class="wine-type">&#127863; ' + esc(w.type) + '</span><span class="wine-price">' + esc(w.price) + '</span></div>'
       + '<div class="wine-grape">' + esc(w.grape) + '</div>'
       + '<div class="wine-region">&#128205; ' + esc(w.region) + '</div>'
       + '<div class="wine-note">' + esc(w.note) + '</div>'
+      + '<button class="btn btn-sm" style="margin-top:10px;background:#EDE9FE;color:#5B21B6;border:none" '
+      + 'onclick="addWineToList('' + safeGrape + '','' + safeType + '','' + safeRegion + '')">'
+      + '+ Zur Einkaufsliste</button>'
       + '</div>';
   });
   return html;
@@ -1640,9 +1657,30 @@ function tplShopping(){
       +'<button class="btn btn-bring" onclick="openBringModal('+esc(shopBringItems)+')">&#127819; Nach Bring</button>'
       +'</div>';
   }
+  // Wine list section
+  var wineSection = "";
+  if (S.wineList.length > 0) {
+    var wineItems = "";
+    S.wineList.forEach(function(w, idx) {
+      var done = w.done;
+      wineItems += '<div class="shop-item' + (done?' done':'') + '" onclick="toggleWineItem(' + idx + ')">'
+        + '<div class="chk' + (done?' on':'') + '">' + (done?svg(I.check,11):'') + '</div>'
+        + '<div style="flex:1"><span>' + esc(w.label) + '</span>'
+        + (w.region?'<span style="font-size:11px;color:var(--text-muted);display:block">'+esc(w.region)+'</span>':'')
+        + '</div>'
+        + '<button onclick="removeWineItem(' + idx + ');event.stopPropagation()" style="background:none;border:none;cursor:pointer;color:#9CA3AF;padding:4px;flex-shrink:0">' + svg(I.x, 14) + '</button>'
+        + '</div>';
+    });
+    wineSection = '<div style="margin-bottom:20px">'
+      + '<p style="font-size:11px;font-weight:800;color:#581C87;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">&#127863; Weine</p>'
+      + '<div class="shop-box" style="border-color:#E9D5FF;background:#FAF5FF">' + wineItems + '</div>'
+      + '<button class="btn btn-ghost btn-sm" onclick="clearWineList()" style="color:var(--danger)">&#10005; Liste leeren</button>'
+      + '</div>';
+  }
+
   return '<h2 style="font-size:22px;font-weight:800;margin-bottom:8px">Einkaufsliste</h2>'
     +'<p style="font-size:14px;color:var(--text-muted);margin-bottom:18px">Basierend auf deinem Wochenplan.</p>'
-    +recipeList+shopList;
+    +wineSection+recipeList+shopList;
 }
 
 // ── Modal ──────────────────────────────────────────────────────────────────
@@ -1831,6 +1869,9 @@ window.doDlDetail=function(){
 };
 window.doDetailToWeek=function(){if(!S.viewing)return;S._pendingPortions=S.scaledPortions||parseInt(S.viewing.servings)||1;openDayModal(S.viewing.id);};
 window.toggleShopI=function(key){S.shopChecked[key]=!S.shopChecked[key];render();};
+window.toggleWineItem=function(idx){if(S.wineList[idx])S.wineList[idx].done=!S.wineList[idx].done;renderOnly();};
+window.removeWineItem=function(idx){S.wineList.splice(idx,1);renderOnly();};
+window.clearWineList=function(){S.wineList=[];renderOnly();};
 
 history.replaceState({tab:"recipes",view:"list",viewingId:null},"","?tab=recipes");
 </script>
