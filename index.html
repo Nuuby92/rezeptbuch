@@ -1368,6 +1368,11 @@ window.loadWineRecommendation = async function() {
   }
 };
 
+window.addWineByIndex = function(idx) {
+  var d = _wineCache["__btn__" + idx];
+  if (d) window.addWineToList(d.grape, d.type, d.region);
+};
+
 window.addWineToList = function(grape, type, region) {
   var label = grape + (type ? ' (' + type + ')' : '');
   var exists = S.wineList.some(function(w){ return w.label === label; });
