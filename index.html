@@ -985,6 +985,130 @@ window.openSubModal = async function(ingredient, amount, unit, recipeName, other
 window.closeSubModal = function() { var m=document.getElementById("sub-modal"); if(m) m.classList.remove("open"); };
 window.onSubModalBgClick = function(e) { if(e.target===document.getElementById("sub-modal")) window.closeSubModal(); };
 
+// ── Allergen detection ─────────────────────────────────────────────────────
+var ALLERGENS = [
+  {
+    id: "gluten",
+    name: "Gluten",
+    icon: "🌾",
+    keywords: ["mehl","weizenmehl","vollkornmehl","nudeln","spaghetti","penne","fusilli","tagliatelle","lasagne","gnocchi","spätzle","spatzle","brot","toast","brötchen","semmelbroesel","paniermehl","panko","couscous","dinkel","roggen","gerste","hafer","haferflocken","weizen","backpulver","hefe","tortilla","wrap","croissant","brezel"]
+  },
+  {
+    id: "eier",
+    name: "Eier",
+    icon: "🥚",
+    keywords: ["ei","eier","eigelb","eiweiss","eiweißreich","mayonnaise"]
+  },
+  {
+    id: "milch",
+    name: "Milch/Laktose",
+    icon: "🥛",
+    keywords: ["milch","vollmilch","magermilch","butter","sahne","schlagsahne","saure sahne","schmand","creme fraiche","joghurt","quark","magerquark","frischkäse","frischkase","philadelphia","käse","kase","gouda","emmentaler","parmesan","mozzarella","feta","ricotta","mascarpone","brie","kondensmilch","buttermilch","ghee","lachs"]
+  },
+  {
+    id: "erdnuesse",
+    name: "Erdnüsse",
+    icon: "🥜",
+    keywords: ["erdnuss","erdnüsse","erdnusse","erdnussbutter","peanut"]
+  },
+  {
+    id: "schalenfruechte",
+    name: "Schalenfrüchte",
+    icon: "🌰",
+    keywords: ["mandeln","walnüsse","walnusse","haselnüsse","haselnusse","cashews","pistazien","macadamia","pinienkerne","pekanüsse","paranüsse","kokosnuss","kokos"]
+  },
+  {
+    id: "soja",
+    name: "Soja",
+    icon: "🫘",
+    keywords: ["soja","sojasosse","sojasoße","sojasauce","tofu","tempeh","edamame","sojamilch","miso"]
+  },
+  {
+    id: "fisch",
+    name: "Fisch",
+    icon: "🐟",
+    keywords: ["lachs","lachsfilet","thunfisch","kabeljau","forelle","hering","sardinen","makrele","tilapia","fischsauce","worcester","worcestershire","anchovis"]
+  },
+  {
+    id: "krebstiere",
+    name: "Krebstiere",
+    icon: "🦐",
+    keywords: ["garnelen","krabben","hummer","krebs","shrimp"]
+  },
+  {
+    id: "weichtiere",
+    name: "Weichtiere",
+    icon: "🦑",
+    keywords: ["tintenfisch","oktopus","muscheln","auster","austernsosse","austernsoße","schnecken","kalmar"]
+  },
+  {
+    id: "sesam",
+    name: "Sesam",
+    icon: "🌱",
+    keywords: ["sesam","sesamöl","sesamol","tahin","tahini"]
+  },
+  {
+    id: "sellerie",
+    name: "Sellerie",
+    icon: "🥬",
+    keywords: ["sellerie","stangensellerie","knollensellerie"]
+  },
+  {
+    id: "senf",
+    name: "Senf",
+    icon: "🟡",
+    keywords: ["senf","dijonsenf","mustard"]
+  },
+  {
+    id: "lupinen",
+    name: "Lupinen",
+    icon: "🌿",
+    keywords: ["lupine","lupinenmehl"]
+  },
+  {
+    id: "schwefel",
+    name: "Schwefeldioxid",
+    icon: "🍷",
+    keywords: ["wein","rotwein","weisswein","weißwein","weinessig","balsamico","trockenfrüchte","rosinen","sultaninen"]
+  }
+];
+
+function detectAllergens(ingredients) {
+  var found = [];
+  var ingText = ingredients
+    .filter(function(i){ return i.name; })
+    .map(function(i){ return i.name.toLowerCase(); })
+    .join(" ");
+
+  ALLERGENS.forEach(function(allergen) {
+    var hit = allergen.keywords.some(function(kw) {
+      return ingText.indexOf(kw) >= 0;
+    });
+    if (hit) found.push(allergen);
+  });
+  return found;
+}
+
+function allergenBoxHtml(ingredients) {
+  var allergens = detectAllergens(ingredients);
+  if (allergens.length === 0) {
+    return '<div style="margin-top:24px;padding:14px 16px;background:#F0FDF4;border-radius:12px;border:1px solid #BBF7D0">'
+      +'<p style="font-size:12px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Allergene</p>'
+      +'<p style="font-size:13px;color:#15803D">&#10003; Keine der 14 EU-Hauptallergene erkannt</p>'
+      +'<p style="font-size:11px;color:#6B7280;margin-top:4px">Angaben ohne Gewähr – bitte Zutaten selbst prüfen.</p>'
+      +'</div>';
+  }
+  var tags = allergens.map(function(a){
+    return '<span style="display:inline-flex;align-items:center;gap:4px;background:#FEF9C3;border:1px solid #FDE047;border-radius:20px;padding:4px 10px;font-size:12px;font-weight:600;color:#713F12">'
+      +a.icon+' '+a.name+'</span>';
+  }).join("");
+  return '<div style="margin-top:24px;padding:14px 16px;background:#FFFBEB;border-radius:12px;border:1px solid #FDE047">'
+    +'<p style="font-size:12px;font-weight:700;color:#92400E;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">&#9888; Enthält Allergene</p>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">'+tags+'</div>'
+    +'<p style="font-size:11px;color:#6B7280">Basierend auf den 14 EU-Hauptallergenen. Angaben ohne Gewähr.</p>'
+    +'</div>';
+}
+
 // ── Render ─────────────────────────────────────────────────────────────────
 function pushState(){
   var state={tab:S.tab,view:S.view,viewingId:S.viewing?S.viewing.id:null};
@@ -1113,7 +1237,9 @@ function tplDetail(){
     +'<button class="btn btn-secondary" onclick="doDlDetail()">'+svg(I.dl)+' Als .txt</button>'
     +'<button class="btn btn-bring" onclick="openBringModal('+esc(bringItems)+')">&#127819; Nach Bring</button>'
     +'<button class="btn btn-secondary" onclick="doDetailToWeek()">'+svg(I.cal)+' Zum Wochenplan</button>'
-    +'</div></div>';
+    +'</div>'
+    +allergenBoxHtml(ings)
+    +'</div>';
 }
 
 function tplForm(){
