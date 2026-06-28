@@ -842,12 +842,12 @@ function tplWeek(){
       rows+='<span style="font-size:12px;font-weight:700;color:var(--text-muted);min-width:90px;text-transform:uppercase;letter-spacing:.5px">'+meal+'</span>';
       if(r){
         rows+='<div class="week-tag" style="flex:1">'+esc(r.name)+'</div>';
-        rows+='<select class="inp inp-sm" style="width:auto;padding:4px 8px;font-size:12px" onchange="setWeekPortions(''+key+'',this.value)">';
+        rows+='<select class="inp inp-sm" style="width:auto;padding:4px 8px;font-size:12px" onchange="setWeekPortions(\x27'+key+'\x27,this.value)">';
         for(var p=1;p<=12;p++){rows+='<option value="'+p+'"'+(p===portions?" selected":"")+'>'+(p>1?p+"x":"1x")+'</option>';}
         rows+='</select>';
-        rows+='<button style="background:none;border:none;cursor:pointer;color:#9CA3AF;display:flex;padding:4px" onclick="removeFromWeek(''+key+'')">'+svg(I.x,14)+'</button>';
+        rows+='<button style="background:none;border:none;cursor:pointer;color:#9CA3AF;display:flex;padding:4px" onclick="removeFromWeek(\x27'+key+'\x27)">'+svg(I.x,14)+'</button>';
       } else {
-        rows+='<button class="week-empty" style="flex:1" onclick="openWeekModal(''+key+'')">+ Rezept ausw&auml;hlen&hellip;</button>';
+        rows+='<button class="week-empty" style="flex:1" onclick="openWeekModal(\x27'+key+'\x27)">+ Rezept ausw&auml;hlen&hellip;</button>';
       }
       rows+='</div>';
     });
