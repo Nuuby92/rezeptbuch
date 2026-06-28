@@ -907,7 +907,7 @@ function openDayModal(recipeId){
   var html="";
   DAYS.forEach(function(day){
     var entry=S.weekPlan[day];
-    var existing=entry?((entry.recipe||entry).name||")":"";
+    var existing=entry?((entry.recipe||entry).name||""):"";
     html+='<button class="modal-opt" onclick="assignDay(\''+day+'\')">'+day+(existing?'<span style="font-size:12px;color:var(--text-muted)">'+esc(existing)+'</span>':"")+'</button>';
   });
   document.getElementById("modal-list").innerHTML=html;
