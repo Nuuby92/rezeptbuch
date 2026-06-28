@@ -927,8 +927,7 @@ function openDayModal(recipeId){
       var key=day+"__"+meal;
       var entry=S.weekPlan[key];
       var existing=entry?((entry.recipe||entry).name||""):"";
-      var safeKey=key.replace(/'/g,"\'");
-      html+='<button class="modal-opt" onclick="assignDay(''+safeKey+'')">'
+      html+='<button class="modal-opt" onclick="assignDay(\''+day+'__'+meal+'\')">'
         +MEAL_ICONS[meal]+' '+day+' – '+meal
         +(existing?'<span style="font-size:12px;color:var(--text-muted)">'+esc(existing)+'</span>':"")
         +'</button>';
