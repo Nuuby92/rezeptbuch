@@ -349,10 +349,22 @@
     </div>
     <div style="display:flex;gap:6px;margin-bottom:14px">
       <button class="nutrition-tab active" id="import-tab-text" onclick="switchImportTab('text')">&#128464; Text</button>
+      <button class="nutrition-tab" id="import-tab-url" onclick="switchImportTab('url')">&#128279; Link</button>
       <button class="nutrition-tab" id="import-tab-image" onclick="switchImportTab('image')">&#128247; Screenshot</button>
     </div>
     <div id="import-text-area">
       <textarea id="import-text" class="inp" rows="8" style="resize:vertical;width:100%" placeholder="Rezepttext hier einf&uuml;gen&hellip;"></textarea>
+    </div>
+    <div id="import-url-area" style="display:none">
+      <div class="field" style="margin-bottom:10px">
+        <label>Rezept-URL oder YouTube-Link</label>
+        <input class="inp" id="import-url" type="url" placeholder="https://www.chefkoch.de/rezepte/..." />
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        <span style="font-size:12px;color:var(--text-muted)">Unterst&uuml;tzt:</span>
+        <span style="font-size:12px;background:var(--green-faint);padding:2px 8px;border-radius:10px">&#127859; Rezept-Webseiten</span>
+        <span style="font-size:12px;background:#FEE2E2;padding:2px 8px;border-radius:10px">&#9654; YouTube</span>
+      </div>
     </div>
     <div id="import-image-area" style="display:none">
       <div id="import-drop-zone" style="border:2px dashed var(--border);border-radius:12px;padding:32px;text-align:center;cursor:pointer" onclick="document.getElementById('import-file').click()" ondragover="event.preventDefault()" ondrop="onImportDrop(event)">
@@ -761,6 +773,7 @@ var importImageBase64=null, importImageType=null, importTab="text";
 window.openImportModal=function(){
   importImageBase64=null;importImageType=null;
   document.getElementById("import-text").value="";
+  if(document.getElementById("import-url")) document.getElementById("import-url").value="";
   document.getElementById("import-status").textContent="";
   document.getElementById("import-preview").style.display="none";
   document.getElementById("import-drop-zone").style.display="";
@@ -772,8 +785,10 @@ window.onImportModalBgClick=function(e){if(e.target===document.getElementById("i
 window.switchImportTab=function(tab){
   importTab=tab;
   document.getElementById("import-text-area").style.display=tab==="text"?"":"none";
+  document.getElementById("import-url-area").style.display=tab==="url"?"":"none";
   document.getElementById("import-image-area").style.display=tab==="image"?"":"none";
   document.getElementById("import-tab-text").classList.toggle("active",tab==="text");
+  document.getElementById("import-tab-url").classList.toggle("active",tab==="url");
   document.getElementById("import-tab-image").classList.toggle("active",tab==="image");
 };
 window.onImportDrop=function(e){e.preventDefault();var f=e.dataTransfer.files[0];if(f)loadImportImage(f);};
@@ -805,6 +820,7 @@ window.submitImport=async function(){
   try {
     var body={};
     if(importTab==="image"){body.imageBase64=importImageBase64;body.imageType=importImageType;}
+    else if(importTab==="url"){body.url=url;}
     else{body.text=text;}
     var res=await fetch("/api/import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
     var data=await res.json();
