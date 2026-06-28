@@ -587,6 +587,11 @@ async function fbDeleteRecipe(id) {
 async function fbSaveWeek() {
   await setDoc(doc(db, "users", S.user.uid, "weekplan", "current"), S.weekPlan);
 }
+async function fbSaveWineList() {
+  try {
+    await setDoc(doc(db, "users", S.user.uid, "winelist", "current"), { wines: S.wineList });
+  } catch(e) { console.error("Wine save error:", e); }
+}
 
 function isOwner(recipe) {
   if (!recipe || !S.user) return false;
@@ -1379,13 +1384,13 @@ window.addWineByIndex = function(idx) {
 };
 
 window.addWineToList = function(grape, type, region) {
-  var label = grape + (type ? ' (' + type + ')' : '');
+  var label = (grape||'') + (type ? ' (' + type + ')' : '');
+  if (!label.trim()) { toast('Kein Wein ausgewählt'); return; }
   var exists = S.wineList.some(function(w){ return w.label === label; });
-  if (exists) { toast(label + ' bereits auf der Liste'); return; }
-  S.wineList.push({ label: label, region: region, done: false });
+  if (exists) { toast(label + ' bereits auf der Liste ✓'); return; }
+  S.wineList.push({ label: label, region: region||'', done: false });
   fbSaveWineList();
   toast('✓ ' + label + ' zur Einkaufsliste hinzugefügt');
-  if (S.tab === 'shopping') renderOnly();
 };
 
 function wineBoxHtml(wines) {
