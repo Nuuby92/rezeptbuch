@@ -1385,6 +1385,16 @@ window.addWineToList = function(grape, type, region) {
 
 function wineBoxHtml(wines) {
   var html = '';
+  wines.forEach(function(w, wi) {
+    _wineCache["__btn__" + wi] = { grape: w.grape, type: w.type, region: w.region };
+    html += '<div class="wine-card">'
+      + '<div class="wine-header"><span class="wine-type">&#127863; ' + esc(w.type) + '</span><span class="wine-price">' + esc(w.price) + '</span></div>'
+      + '<div class="wine-grape">' + esc(w.grape) + '</div>'
+      + '<div class="wine-region">&#128205; ' + esc(w.region) + '</div>'
+      + '<div class="wine-note">' + esc(w.note) + '</div>'
+      + '<button class="btn btn-sm" style="margin-top:10px;background:#EDE9FE;color:#5B21B6;border:none" onclick="addWineByIndex(' + wi + ')">+ Zur Einkaufsliste</button>'
+      + '</div>';
+  });
   return html;
 }
 
