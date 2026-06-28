@@ -1391,15 +1391,40 @@ window.addWineToList = function(grape, type, region) {
 function wineBoxHtml(wines) {
   var html = '';
   wines.forEach(function(w, wi) {
-    _wineCache["__btn__" + wi] = { grape: w.grape, type: w.type, region: w.region };
+    var btn = document.createElement('button');
+    btn.className = 'btn btn-sm';
+    btn.style.cssText = 'margin-top:10px;background:#EDE9FE;color:#5B21B6;border:none';
+    btn.textContent = '+ Zur Einkaufsliste';
+    btn._wGrape = w.grape; btn._wType = w.type; btn._wRegion = w.region;
+    btn.onclick = function() { window.addWineToList(this._wGrape, this._wType, this._wRegion); };
+    var btnHtml = '__WINE_BTN_' + wi + '__';
     html += '<div class="wine-card">'
       + '<div class="wine-header"><span class="wine-type">&#127863; ' + esc(w.type) + '</span><span class="wine-price">' + esc(w.price) + '</span></div>'
       + '<div class="wine-grape">' + esc(w.grape) + '</div>'
       + '<div class="wine-region">&#128205; ' + esc(w.region) + '</div>'
       + '<div class="wine-note">' + esc(w.note) + '</div>'
-      + '<button class="btn btn-sm" style="margin-top:10px;background:#EDE9FE;color:#5B21B6;border:none" onclick="addWineByIndex(' + wi + ')">+ Zur Einkaufsliste</button>'
+      + '<div id="wine-btn-' + wi + '" style="margin-top:10px"></div>'
       + '</div>';
+    // Store button for later attachment
+    _wineCache['__btn__' + wi] = { grape: w.grape, type: w.type, region: w.region, btn: btn };
   });
+  // Attach buttons after render
+  setTimeout(function() {
+    wines.forEach(function(w, wi) {
+      var slot = document.getElementById('wine-btn-' + wi);
+      var d = _wineCache['__btn__' + wi];
+      if (slot && d) {
+        var b = document.createElement('button');
+        b.className = 'btn btn-sm';
+        b.style.cssText = 'background:#EDE9FE;color:#5B21B6;border:none';
+        b.textContent = '+ Zur Einkaufsliste';
+        b.onclick = (function(grape, type, region) {
+          return function() { window.addWineToList(grape, type, region); };
+        })(d.grape, d.type, d.region);
+        slot.appendChild(b);
+      }
+    });
+  }, 50);
   return html;
 }
 
