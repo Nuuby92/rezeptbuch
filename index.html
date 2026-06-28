@@ -21,12 +21,17 @@
     input:focus, textarea:focus, select:focus { border-color: var(--green-dark) !important; outline: none; }
     #app { display: flex; flex-direction: column; min-height: 100vh; }
     header { background: var(--surface); border-bottom: 1.5px solid var(--border); position: sticky; top: 0; z-index: 50; }
-    .header-inner { max-width: 820px; margin: 0 auto; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; height: 60px; gap: 8px; }
+    .header-inner { max-width: 820px; margin: 0 auto; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; height: 60px; gap: 8px; overflow: hidden; }
     .logo { display: flex; align-items: center; gap: 10px; }
     .logo-icon { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, var(--green-dark), var(--green-mid)); display: flex; align-items: center; justify-content: center; }
     .logo-text { font-weight: 800; font-size: 18px; }
-    .user-info { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); flex-shrink: 0; }
-    .user-email { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .user-info { position: relative; flex-shrink: 0; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--green-dark); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; cursor: pointer; border: none; flex-shrink: 0; }
+    .user-dropdown { position: absolute; right: 0; top: 40px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 12px; padding: 8px; min-width: 180px; box-shadow: 0 4px 16px rgba(0,0,0,.12); z-index: 100; display: none; }
+    .user-dropdown.open { display: block; }
+    .user-dropdown-email { font-size: 12px; color: var(--text-muted); padding: 6px 10px 10px; border-bottom: 1px solid var(--border); margin-bottom: 6px; word-break: break-all; }
+    .user-dropdown-btn { width: 100%; text-align: left; background: none; border: none; padding: 8px 10px; border-radius: 8px; font-size: 14px; font-weight: 600; color: var(--danger); cursor: pointer; font-family: inherit; }
+    .user-dropdown-btn:hover { background: var(--danger-bg); }
     nav { display: flex; gap: 4px; flex-shrink: 0; }
     .nav-btn { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; background: transparent; color: var(--text-muted); font-size: 13px; font-weight: 600; transition: all .15s; border: none; cursor: pointer; }
     .nav-btn.active { background: var(--green-light); color: var(--green-darkest); }
@@ -165,13 +170,11 @@
     .spinner-sm { width: 18px; height: 18px; border-width: 2px; display: inline-block; vertical-align: middle; }
     @keyframes spin { to { transform: rotate(360deg); } }
     @media (max-width: 600px) {
-      .user-email { display: none; }
       .form-grid { grid-template-columns: 1fr; }
       .combined-items { columns: 1; }
       .ing-row { grid-template-columns: 60px 80px 1fr 28px; }
       .logo-text { display: none; }
       .nutrition-grid { grid-template-columns: repeat(2,1fr); }
-      .user-email { display: none; }
     }
   </style>
 </head>
@@ -290,6 +293,40 @@
   </div>
 </div>
 
+<!-- Stats modal -->
+<div class="modal-overlay" id="stats-modal" onclick="onStatsModalBgClick(event)">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-hd">
+      <h3>&#128202; Statistiken</h3>
+      <button class="btn btn-ghost btn-icon" onclick="closeStatsModal()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div id="stats-content"></div>
+  </div>
+</div>
+
+<!-- Password modal -->
+<div class="modal-overlay" id="pw-modal" onclick="onPwModalBgClick(event)">
+  <div class="modal-box" style="max-width:400px">
+    <div class="modal-hd">
+      <h3>&#128274; Passwort &auml;ndern</h3>
+      <button class="btn btn-ghost btn-icon" onclick="closePwModal()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px">
+      <div class="field"><label>Neues Passwort</label><input class="inp" id="pw-new" type="password" placeholder="Mindestens 6 Zeichen" /></div>
+      <div class="field"><label>Passwort best&auml;tigen</label><input class="inp" id="pw-confirm" type="password" placeholder="Nochmal eingeben" /></div>
+    </div>
+    <div id="pw-status" style="font-size:13px;min-height:20px;margin-bottom:12px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closePwModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="submitPwChange()">&#128274; Passwort &auml;ndern</button>
+    </div>
+  </div>
+</div>
+
 <!-- Import modal -->
 <div class="modal-overlay" id="import-modal" onclick="onImportModalBgClick(event)">
   <div class="modal-box" style="max-width:520px">
@@ -399,9 +436,33 @@ window.submitAuth = async function() {
   }
 };
 
+window.toggleUserMenu = function() {
+  var dd = document.getElementById("user-dropdown");
+  if (dd) dd.classList.toggle("open");
+};
+// Close dropdown when clicking outside
+document.addEventListener("click", function(e) {
+  var dd = document.getElementById("user-dropdown");
+  var btn = document.getElementById("user-avatar-btn");
+  if (dd && btn && !dd.contains(e.target) && e.target !== btn) {
+    dd.classList.remove("open");
+  }
+});
 window.confirmLogout = function() {
   if (confirm("Wirklich abmelden?")) window.doLogout();
 };
+window.toggleUserMenu = function() {
+  var dd = document.getElementById("user-dropdown");
+  if (dd) dd.classList.toggle("open");
+};
+// Close dropdown when clicking outside
+document.addEventListener("click", function(e) {
+  var dd = document.getElementById("user-dropdown");
+  var btn = document.getElementById("user-avatar-btn");
+  if (dd && btn && !dd.contains(e.target) && e.target !== btn) {
+    dd.classList.remove("open");
+  }
+});
 window.confirmLogout = function() {
   if (confirm("Wirklich abmelden?")) window.doLogout();
 };
@@ -417,7 +478,10 @@ onAuthStateChanged(auth, function(user) {
     S.user = user;
     document.getElementById("auth-screen").style.display = "none";
     document.getElementById("app").style.display = "flex";
-    document.getElementById("user-email-display").textContent = user.displayName || user.email;
+    var displayName = user.displayName || user.email;
+    document.getElementById("user-email-display").textContent = displayName;
+    var avatarBtn = document.getElementById("user-avatar-btn");
+    if (avatarBtn) avatarBtn.textContent = (user.displayName ? user.displayName[0] : user.email[0]).toUpperCase();
     initApp();
   } else {
     S.user = null;
@@ -745,6 +809,126 @@ window.switchTab=function(tab){
   S.tab=tab;S.view="list";S.editing=null;S.viewing=null;S.search="";S.nutrition=null;
   ["recipes","week","shopping"].forEach(function(t){document.getElementById("nav-"+t).classList.toggle("active",t===tab);});
   render();
+};
+
+// ── Stats modal ────────────────────────────────────────────────────────────
+window.openStatsModal = function() {
+  document.getElementById("user-dropdown").classList.remove("open");
+  var modal = document.getElementById("stats-modal");
+  var cnt = document.getElementById("stats-content");
+  modal.classList.add("open");
+
+  // Calculate stats
+  var totalRecipes = S.recipes.length;
+  var myRecipes = S.recipes.filter(function(r){ return !r.createdBy || r.createdBy === (S.user&&S.user.uid); }).length;
+  var othersRecipes = totalRecipes - myRecipes;
+
+  // Recipes planned this week
+  var weekEntries = getWeekEntries();
+  var weekRecipeNames = weekEntries.map(function(e){ return e.recipe.name; });
+  var uniqueWeekRecipes = weekEntries.filter(function(e,i,a){
+    return a.findIndex(function(x){ return x.recipe.id===e.recipe.id; })===i;
+  }).length;
+
+  // Total ingredients across all recipes
+  var totalIngs = S.recipes.reduce(function(sum,r){ return sum+(r.ingredients||[]).filter(function(i){return i.name;}).length; },0);
+
+  // Average prep time
+  var timesWithMinutes = S.recipes.filter(function(r){ return r.prepTime; }).map(function(r){
+    var match = r.prepTime.match(/(\d+)/);
+    return match ? parseInt(match[1]) : null;
+  }).filter(Boolean);
+  var avgTime = timesWithMinutes.length ? Math.round(timesWithMinutes.reduce(function(a,b){return a+b;},0)/timesWithMinutes.length) : null;
+
+  // Fastest and longest recipe
+  var withTimes = S.recipes.filter(function(r){
+    return r.prepTime && r.prepTime.match(/(\d+)/);
+  }).map(function(r){
+    return { name: r.name, mins: parseInt(r.prepTime.match(/(\d+)/)[1]) };
+  });
+  withTimes.sort(function(a,b){return a.mins-b.mins;});
+  var fastest = withTimes[0];
+  var longest = withTimes[withTimes.length-1];
+
+  function statCard(icon, label, value, sub) {
+    return '<div style="background:var(--green-faint);border-radius:12px;padding:14px 16px;border:1px solid var(--border)">'
+      +'<div style="font-size:20px;margin-bottom:4px">'+icon+'</div>'
+      +'<div style="font-size:22px;font-weight:800;color:var(--green-darkest)">'+value+'</div>'
+      +'<div style="font-size:13px;font-weight:600;color:var(--text-sub)">'+label+'</div>'
+      +(sub?'<div style="font-size:11px;color:var(--text-muted);margin-top:2px">'+sub+'</div>':"")
+      +'</div>';
+  }
+
+  var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">'
+    + statCard("&#128214;","Rezepte gesamt",totalRecipes,"davon "+myRecipes+" von dir")
+    + statCard("&#128203;","Zutaten gesamt",totalIngs,"&Oslash; "+(totalRecipes?Math.round(totalIngs/totalRecipes):0)+" pro Rezept")
+    + statCard("&#128197;","Diese Woche geplant",weekEntries.length,uniqueWeekRecipes+" verschiedene Gerichte")
+    + statCard("&#9201;","&Oslash; Zubereitungszeit",avgTime?avgTime+" min":"–","")
+    +'</div>';
+
+  if (fastest && longest && fastest.name !== longest.name) {
+    html += '<div style="background:var(--surface);border-radius:12px;padding:14px 16px;border:1.5px solid var(--border);margin-bottom:10px">'
+      +'<p style="font-size:11px;font-weight:800;color:var(--green-darkest);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Schnellstes &amp; l&auml;ngstes Rezept</p>'
+      +'<div style="display:flex;justify-content:space-between;gap:12px">'
+      +'<div><div style="font-size:18px">&#9889;</div><div style="font-weight:700;font-size:14px">'+esc(fastest.name)+'</div><div style="font-size:12px;color:var(--text-muted)">'+fastest.mins+' min</div></div>'
+      +'<div style="text-align:right"><div style="font-size:18px">&#9203;</div><div style="font-weight:700;font-size:14px">'+esc(longest.name)+'</div><div style="font-size:12px;color:var(--text-muted)">'+longest.mins+' min</div></div>'
+      +'</div></div>';
+  }
+
+  if (othersRecipes > 0) {
+    html += '<div style="font-size:13px;color:var(--text-muted);text-align:center;padding:6px 0">'
+      +'&#128101; '+othersRecipes+' Rezept'+(othersRecipes>1?"e":"")+" von anderen Nutzern in der Datenbank"
+      +'</div>';
+  }
+
+  cnt.innerHTML = html;
+};
+window.closeStatsModal = function() { document.getElementById("stats-modal").classList.remove("open"); };
+window.onStatsModalBgClick = function(e) { if(e.target===document.getElementById("stats-modal")) window.closeStatsModal(); };
+
+// ── Password modal ──────────────────────────────────────────────────────────
+window.openPwModal = function() {
+  document.getElementById("user-dropdown").classList.remove("open");
+  document.getElementById("pw-new").value = "";
+  document.getElementById("pw-confirm").value = "";
+  document.getElementById("pw-status").textContent = "";
+  document.getElementById("pw-modal").classList.add("open");
+};
+window.closePwModal = function() { document.getElementById("pw-modal").classList.remove("open"); };
+window.onPwModalBgClick = function(e) { if(e.target===document.getElementById("pw-modal")) window.closePwModal(); };
+
+window.submitPwChange = async function() {
+  var newPw = document.getElementById("pw-new").value;
+  var confirmPw = document.getElementById("pw-confirm").value;
+  var statusEl = document.getElementById("pw-status");
+
+  if (!newPw || newPw.length < 6) {
+    statusEl.textContent = "Passwort muss mindestens 6 Zeichen haben.";
+    statusEl.style.color = "var(--danger)";
+    return;
+  }
+  if (newPw !== confirmPw) {
+    statusEl.textContent = "Passwörter stimmen nicht überein.";
+    statusEl.style.color = "var(--danger)";
+    return;
+  }
+
+  statusEl.textContent = "Wird gespeichert…";
+  statusEl.style.color = "var(--text-muted)";
+
+  try {
+    var { updatePassword } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
+    await updatePassword(auth.currentUser, newPw);
+    statusEl.textContent = "Passwort erfolgreich geändert! ✓";
+    statusEl.style.color = "var(--green-dark)";
+    setTimeout(function(){ window.closePwModal(); }, 1500);
+  } catch(e) {
+    var msg = e.code === "auth/requires-recent-login"
+      ? "Bitte melde dich erneut an um das Passwort zu ändern."
+      : e.message;
+    statusEl.textContent = msg;
+    statusEl.style.color = "var(--danger)";
+  }
 };
 
 // ── Substitute modal ──────────────────────────────────────────────────────
