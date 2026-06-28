@@ -830,19 +830,27 @@ function tplWeek(){
   var entries=getWeekEntries(); var hasAny=entries.length>0;
   var rows="";
   DAYS.forEach(function(day){
-    var entry=S.weekPlan[day];
-    var r=entry?(entry.recipe||entry):null;
-    var portions=entry?(entry.portions||parseInt((r||{}).servings)||1):1;
-    rows+='<div class="week-row"><span class="week-day">'+day+'</span>';
-    if(r){
-      rows+='<div class="week-tag">'+esc(r.name)+'</div>';
-      rows+='<select class="inp inp-sm" style="width:auto;padding:5px 8px" onchange="setWeekPortions(\''+day+'\',this.value)">';
-      for(var p=1;p<=12;p++){rows+='<option value="'+p+'"'+(p===portions?" selected":"")+'>'+(p>1?p+"x":"1x")+'</option>';}
-      rows+='</select>';
-      rows+='<button style="background:none;border:none;cursor:pointer;color:#9CA3AF;display:flex;padding:4px" onclick="removeFromWeek(\''+day+'\')">'+svg(I.x,14)+'</button>';
-    } else {
-      rows+='<button class="week-empty" onclick="openWeekModal(\''+day+'\')">+ Rezept ausw&auml;hlen&hellip;</button>';
-    }
+    rows+='<div style="background:var(--surface);border-radius:14px;border:1.5px solid #E4F2E1;margin-bottom:10px;overflow:hidden">'
+      +'<div style="padding:10px 16px;font-weight:800;font-size:15px;background:var(--green-faint);border-bottom:1px solid var(--border)">'+day+'</div>';
+    MEALS.forEach(function(meal){
+      var key=day+"__"+meal;
+      var entry=S.weekPlan[key];
+      var r=entry?(entry.recipe||entry):null;
+      var portions=entry?(entry.portions||parseInt((r||{}).servings)||1):1;
+      rows+='<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--green-faint)">';
+      rows+='<span style="font-size:16px;width:24px;text-align:center">'+MEAL_ICONS[meal]+'</span>';
+      rows+='<span style="font-size:12px;font-weight:700;color:var(--text-muted);min-width:90px;text-transform:uppercase;letter-spacing:.5px">'+meal+'</span>';
+      if(r){
+        rows+='<div class="week-tag" style="flex:1">'+esc(r.name)+'</div>';
+        rows+='<select class="inp inp-sm" style="width:auto;padding:4px 8px;font-size:12px" onchange="setWeekPortions(''+key+'',this.value)">';
+        for(var p=1;p<=12;p++){rows+='<option value="'+p+'"'+(p===portions?" selected":"")+'>'+(p>1?p+"x":"1x")+'</option>';}
+        rows+='</select>';
+        rows+='<button style="background:none;border:none;cursor:pointer;color:#9CA3AF;display:flex;padding:4px" onclick="removeFromWeek(''+key+'')">'+svg(I.x,14)+'</button>';
+      } else {
+        rows+='<button class="week-empty" style="flex:1" onclick="openWeekModal(''+key+'')">+ Rezept ausw&auml;hlen&hellip;</button>';
+      }
+      rows+='</div>';
+    });
     rows+='</div>';
   });
   var exportBtns="";
@@ -861,9 +869,8 @@ function tplWeek(){
     ings.forEach(function(i){items+='<div class="combined-item"><span style="color:var(--green-mid)">&#8226;</span><span>'+esc(fmtIng(i))+'</span></div>';});
     combined='<div class="combined-box"><h3>Einkaufsliste f&uuml;r diese Woche</h3><div class="combined-items">'+items+'</div></div>';
   }
-  return '<div class="section-hd"><h2>Wochenplan</h2>'+exportBtns+'</div><div class="week-grid">'+rows+'</div>'+combined;
+  return '<div class="section-hd"><h2>Wochenplan</h2>'+exportBtns+'</div>'+rows+combined;
 }
-
 function tplShopping(){
   var entries=getWeekEntries(); var ings=mergeWeekIngredients();
   if(entries.length===0){
