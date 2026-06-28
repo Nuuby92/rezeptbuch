@@ -933,6 +933,13 @@ function filterPanel() {
     });
     html += '</div></div>';
   });
+  var uncategorized = S.recipes.filter(function(r){ return !r.tags || r.tags.length === 0; }).length;
+  if (uncategorized > 0) {
+    html += '<div style="padding-top:10px;border-top:1px solid var(--border);margin-top:4px">';
+    html += '<p style="font-size:12px;color:var(--text-muted);margin-bottom:6px">'+uncategorized+' Rezepte noch ohne Tags</p>';
+    html += '<button class="btn btn-secondary btn-sm" onclick="categorizeAll()">&#10024; Alle automatisch kategorisieren</button>';
+    html += '</div>';
+  }
   html += '</div>';
   return html;
 }
@@ -1398,7 +1405,7 @@ function tplList(){
     +'<button class="btn btn-secondary" onclick="openImportModal()">&#128203; Importieren</button>'
     +'<button class="btn btn-primary" onclick="doNew()">'+svg(I.plus)+' Neu</button></div></div>'
     +'<div class="search-wrap"><span class="search-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>'
-    +'<input class="search-input" placeholder="Rezepte durchsuchen\u2026" value="'+esc(S.search)+'" oninput="doSearch(this.value)" /></div>'
+    +'<input class="search-input" id="recipe-search-input" placeholder="Rezepte durchsuchen\u2026" value="'+esc(S.search)+'" oninput="debouncedSearch(this.value)" /></div>'
     +(S.filterOpen ? filterPanel() : '')
     +'<div class="recipe-grid">'+cards+'</div>';
 }
@@ -1697,7 +1704,35 @@ function renderScaledIngredients() {
 
 window.doNew=function(){S.editing=null;S.view="form";render();};
 window.doBack=function(){if(history.length>1){history.back();}else{S.view="list";S.editing=null;S.viewing=null;S.nutrition=null;render();}};
-window.doSearch=function(q){S.search=q;render();};
+window.doSearch=function(q){S.search=q;renderOnly();};
+var _searchTimer=null;
+window.debouncedSearch=function(q){
+  clearTimeout(_searchTimer);
+  _searchTimer=setTimeout(function(){ window.doSearch(q); },400);
+};
+
+// ── Batch categorize all recipes ──────────────────────────────────────────
+window.categorizeAll = async function() {
+  var uncategorized = S.recipes.filter(function(r){ return !r.tags || r.tags.length === 0; });
+  if (uncategorized.length === 0) { toast("Alle Rezepte sind bereits kategorisiert ✓"); return; }
+  toast("Kategorisiere " + uncategorized.length + " Rezepte…");
+  var done = 0;
+  for (var i = 0; i < uncategorized.length; i++) {
+    var r = uncategorized[i];
+    try {
+      var tags = await autoCategorizRecipe(r);
+      if (tags.length > 0) {
+        var data = Object.assign({}, r); delete data.id;
+        data.tags = tags;
+        var { setDoc, doc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+        await setDoc(doc(db, "recipes", r.id), data);
+        done++;
+        toast(done + "/" + uncategorized.length + " kategorisiert…");
+      }
+    } catch(e) {}
+  }
+  toast(done + " Rezepte kategorisiert ✓");
+};
 window.doEdit=function(id){S.editing=S.recipes.find(function(r){return r.id===id;});S.view="form";render();};
 window.doView=function(id){S.viewing=S.recipes.find(function(r){return r.id===id;});S.nutrition=null;S.scaledPortions=null;S.view="detail";render();};
 window.doDelete=async function(id){
