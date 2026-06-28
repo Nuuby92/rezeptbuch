@@ -1136,29 +1136,30 @@ async function fetchNutritionForRecipe(recipe, portions) {
 }
 
 async function loadWeekNutrition() {
-  var promises = [];
-  DAYS.forEach(function(day) {
-    MEALS.forEach(function(meal) {
+  // Load one at a time to avoid overwhelming the API
+  for (var di = 0; di < DAYS.length; di++) {
+    var day = DAYS[di];
+    for (var mi = 0; mi < MEALS.length; mi++) {
+      var meal = MEALS[mi];
       var key = day + "__" + meal;
       var entry = S.weekPlan[key];
-      if (!entry) return;
-      var r = entry.recipe || entry;
-      var cacheKey = r.id + "__" + entry.portions;
-      if (S.weekNutritionCache[cacheKey]) return; // already cached
-      promises.push(
-        fetchNutritionForRecipe(r, entry.portions).then(function(n) {
-          if (n) S.weekNutritionCache[cacheKey] = n;
-        })
-      );
-    });
-  });
-  if (promises.length === 0) return;
-  await Promise.all(promises);
-  // Re-render nutrition summaries only
-  DAYS.forEach(function(day) {
-    var el = document.getElementById("day-nutrition-" + day);
-    if (el) el.innerHTML = dayNutritionHtml(day);
-  });
+      if (!entry) continue;
+      var r = entry && entry.recipe ? entry.recipe : entry;
+      if (!r || !r.id) continue;
+      var portions = entry.portions || parseInt((r.servings)||"1") || 1;
+      var cacheKey = r.id + "__" + portions;
+      if (S.weekNutritionCache[cacheKey]) continue;
+      try {
+        var n = await fetchNutritionForRecipe(r, portions);
+        if (n) {
+          S.weekNutritionCache[cacheKey] = n;
+          // Update this day's display
+          var el = document.getElementById("day-nutrition-" + day);
+          if (el) el.innerHTML = dayNutritionHtml(day);
+        }
+      } catch(e) { /* skip failed */ }
+    }
+  }
 }
 
 function dayNutritionHtml(day) {
@@ -1416,16 +1417,8 @@ function tplWeek(){
     ings.forEach(function(i){items+='<div class="combined-item"><span style="color:var(--green-mid)">&#8226;</span><span>'+esc(fmtIng(i))+'</span></div>';});
     combined='<div class="combined-box"><h3>Einkaufsliste f&uuml;r diese Woche</h3><div class="combined-items">'+items+'</div></div>';
   }
-  // Add nutrition placeholder to each day row
-  DAYS.forEach(function(day) {
-    var placeholder = '<div id="day-nutrition-'+day+'">'+dayNutritionHtml(day)+'</div>';
-    rows = rows.replace('</div>
-    <div style="background', placeholder+'</div>
-    <div style="background');
-  });
-
   // Trigger background nutrition load after render
-  setTimeout(function(){ loadWeekNutrition(); }, 100);
+  setTimeout(function(){ loadWeekNutrition(); }, 200);
 
   return '<div class="section-hd"><h2>Wochenplan</h2>'+exportBtns+'</div>'+rows+combined;
 }
