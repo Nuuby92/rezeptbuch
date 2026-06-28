@@ -1706,6 +1706,21 @@ function tplShopping(){
   }
 
   // ── Zusammenbauen ────────────────────────────────────────────────────────
+  // ── Weine zu allItems hinzufügen ──────────────────────────────────────────
+  if (S.wineList.length > 0) {
+    if (allItems) allItems += '<div style="height:1px;background:var(--border);margin:10px 0"></div>';
+    S.wineList.forEach(function(w, i) {
+      var done = w.done;
+      allItems += '<div class="shop-item' + (done?' done':'') + '" onclick="toggleWineItem('+i+')">'
+        + '<div class="chk' + (done?' on':'') + '">' + (done?svg(I.check,11):'') + ' </div>'
+        + '<div style="flex:1"><span>&#127863; ' + esc(w.label) + '</span>'
+        + (w.region ? '<span style="font-size:11px;color:var(--text-muted);display:block">' + esc(w.region) + '</span>' : '')
+        + '</div>'
+        + '<button onclick="removeWineItem('+i+');event.stopPropagation()" style="background:none;border:none;cursor:pointer;color:#9CA3AF;padding:4px;flex-shrink:0">' + svg(I.x,14) + '</button>'
+        + '</div>';
+    });
+  }
+
   var label = ings.length > 0 ? 'Zutaten ('+ings.length+')' + (S.wineList.length>0?' + Weine':'') : (S.wineList.length>0?'Weine':'');
   var shopBox = allItems ? '<div class="shop-box"><p style="font-size:11px;font-weight:800;color:var(--green-darkest);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px">'+label+'</p>'+allItems+'</div>' : '';
 
