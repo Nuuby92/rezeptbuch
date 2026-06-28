@@ -400,6 +400,7 @@ var S = {
   bringItems: [],
   nutrition: null, nutritionTab: "portion", nutritionLoading: false,
   scaledPortions: null,
+  weekNutritionCache: {},
 };
 var DAYS = ["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
 var MEALS = ["Frühstück","Mittagessen","Abendessen"];
@@ -1109,6 +1110,105 @@ function allergenBoxHtml(ingredients) {
     +'</div>';
 }
 
+// ── Weekly nutrition ────────────────────────────────────────────────────────
+async function fetchNutritionForRecipe(recipe, portions) {
+  var base = parseInt(recipe.servings) || 1;
+  var ings = (recipe.ingredients||[]).filter(function(i){ return i.name && i.amount; })
+    .map(function(i){ return { name: i.name, amount: i.amount, unit: i.unit }; });
+  if (ings.length === 0) return null;
+  try {
+    var res = await fetch("/api/nutrition", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ingredients: ings, servings: base })
+    });
+    var data = await res.json();
+    if (!res.ok || !data.perServing) return null;
+    // Scale to requested portions then divide by portions = per person
+    var scale = portions / base;
+    return {
+      kcal:    Math.round(data.perServing.kcal),
+      protein: Math.round(data.perServing.protein * 10) / 10,
+      carbs:   Math.round(data.perServing.carbs * 10) / 10,
+      fat:     Math.round(data.perServing.fat * 10) / 10,
+    };
+  } catch(e) { return null; }
+}
+
+async function loadWeekNutrition() {
+  var promises = [];
+  DAYS.forEach(function(day) {
+    MEALS.forEach(function(meal) {
+      var key = day + "__" + meal;
+      var entry = S.weekPlan[key];
+      if (!entry) return;
+      var r = entry.recipe || entry;
+      var cacheKey = r.id + "__" + entry.portions;
+      if (S.weekNutritionCache[cacheKey]) return; // already cached
+      promises.push(
+        fetchNutritionForRecipe(r, entry.portions).then(function(n) {
+          if (n) S.weekNutritionCache[cacheKey] = n;
+        })
+      );
+    });
+  });
+  if (promises.length === 0) return;
+  await Promise.all(promises);
+  // Re-render nutrition summaries only
+  DAYS.forEach(function(day) {
+    var el = document.getElementById("day-nutrition-" + day);
+    if (el) el.innerHTML = dayNutritionHtml(day);
+  });
+}
+
+function dayNutritionHtml(day) {
+  var totals = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
+  var found = false;
+  var loading = false;
+  MEALS.forEach(function(meal) {
+    var key = day + "__" + meal;
+    var entry = S.weekPlan[key];
+    if (!entry) return;
+    var r = entry.recipe || entry;
+    var cacheKey = r.id + "__" + entry.portions;
+    if (S.weekNutritionCache[cacheKey]) {
+      var n = S.weekNutritionCache[cacheKey];
+      totals.kcal    += n.kcal;
+      totals.protein += n.protein;
+      totals.carbs   += n.carbs;
+      totals.fat     += n.fat;
+      found = true;
+    } else {
+      loading = true;
+    }
+  });
+
+  var hasMeals = MEALS.some(function(meal){ return !!S.weekPlan[day+"__"+meal]; });
+  if (!hasMeals) return "";
+
+  if (!found && loading) {
+    return '<div style="padding:8px 16px 12px;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted)">'
+      +'<div class="spinner spinner-sm"></div> Nährwerte werden berechnet…</div>';
+  }
+
+  if (!found) return "";
+
+  var statStyle = 'style="text-align:center;flex:1"';
+  var valStyle = 'style="font-size:15px;font-weight:800;color:var(--green-darkest)"';
+  var lblStyle = 'style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px"';
+
+  return '<div style="padding:10px 16px 14px;border-top:1px solid var(--border)">'
+    +'<p style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">&#127869; Pro Person'+(loading?' <span style=\"font-size:10px\">&#8987;</span>':'')+'</p>'
+    +'<div style="display:flex;gap:8px">'
+    +'<div '+statStyle+'><div '+valStyle+'>'+Math.round(totals.kcal)+'</div><div '+lblStyle+'>kcal</div></div>'
+    +'<div '+statStyle+'><div '+valStyle+'>'+Math.round(totals.protein*10)/10+'</div><div '+lblStyle+'>Eiweiß</div></div>'
+    +'<div '+statStyle+'><div '+valStyle+'>'+Math.round(totals.carbs*10)/10+'</div><div '+lblStyle+'>Kohlenhydrate</div></div>'
+    +'<div '+statStyle+'><div '+valStyle+'>'+Math.round(totals.fat*10)/10+'</div><div '+lblStyle+'>Fett</div></div>'
+    +'</div>'
+    +(loading?'<p style="font-size:10px;color:var(--text-muted);margin-top:4px">⏳ Einige Werte werden noch geladen…</p>':'')
+    +'</div>';
+}
+
 // ── Render ─────────────────────────────────────────────────────────────────
 function pushState(){
   var state={tab:S.tab,view:S.view,viewingId:S.viewing?S.viewing.id:null};
@@ -1297,6 +1397,7 @@ function tplWeek(){
       }
       rows+='</div>';
     });
+    rows+='<div id="day-nutrition-'+day+'"></div>';
     rows+='</div>';
   });
   var exportBtns="";
@@ -1315,6 +1416,17 @@ function tplWeek(){
     ings.forEach(function(i){items+='<div class="combined-item"><span style="color:var(--green-mid)">&#8226;</span><span>'+esc(fmtIng(i))+'</span></div>';});
     combined='<div class="combined-box"><h3>Einkaufsliste f&uuml;r diese Woche</h3><div class="combined-items">'+items+'</div></div>';
   }
+  // Add nutrition placeholder to each day row
+  DAYS.forEach(function(day) {
+    var placeholder = '<div id="day-nutrition-'+day+'">'+dayNutritionHtml(day)+'</div>';
+    rows = rows.replace('</div>
+    <div style="background', placeholder+'</div>
+    <div style="background');
+  });
+
+  // Trigger background nutrition load after render
+  setTimeout(function(){ loadWeekNutrition(); }, 100);
+
   return '<div class="section-hd"><h2>Wochenplan</h2>'+exportBtns+'</div>'+rows+combined;
 }
 function tplShopping(){
