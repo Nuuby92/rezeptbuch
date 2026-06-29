@@ -1618,6 +1618,7 @@ function tplForm(){
     +'<div class="field"><label>Portionen</label><input class="inp" id="f-srv" type="number" value="'+esc(r.servings)+'" /></div>'
     +'<div class="field"><label>Zubereitungszeit</label><input class="inp" id="f-time" value="'+esc(r.prepTime||"")+'" placeholder="z.B. 30 min" /></div>'
     +'<div class="field col2"><label>Kurzbeschreibung</label><textarea class="inp" id="f-desc" rows="2" style="resize:vertical" placeholder="Was macht dieses Rezept besonders?">'+esc(r.description||"")+'</textarea></div>'
+    +'<div class="field col2"><label>Tags</label><input class="inp" id="f-tags" value="'+(r.tags||[]).join(', ')+'" placeholder="z.B. Hauptgericht, Fleisch, Italienisch" /></div>'
     +'</div>'
     +'<div class="form-section"><div class="form-section-hd"><span class="form-section-label">Zutaten *</span><button class="btn btn-ghost btn-sm" onclick="addIng()">'+svg(I.plus,14)+' Hinzuf&uuml;gen</button></div><div id="ing-list">'+ingRows+'</div></div>'
     +'<div class="form-section"><div class="form-section-hd"><span class="form-section-label">Zubereitung *</span><button class="btn btn-ghost btn-sm" onclick="addStep()">'+svg(I.plus,14)+' Schritt</button></div><div id="step-list">'+stepRows+'</div></div>'
@@ -1904,7 +1905,8 @@ window.doSave=async function(existingId){
   var ings=[];document.querySelectorAll("[data-ing]").forEach(function(row){ings.push({id:row.dataset.ing,amount:row.querySelector('[data-f="amount"]').value.trim(),unit:row.querySelector('[data-f="unit"]').value,name:row.querySelector('[data-f="name"]').value.trim()});});
   var steps=[];document.querySelectorAll("[data-step]").forEach(function(row){steps.push({id:row.dataset.step,text:row.querySelector('[data-f="text"]').value.trim()});});
   var existing=existingId?S.recipes.find(function(r){return r.id===existingId;}):null;
-  var tagsInput=document.getElementById("f-tags").value.trim();
+  var tagsEl=document.getElementById("f-tags");
+  var tagsInput=tagsEl?tagsEl.value.trim():"";
   var manualTags=tagsInput?tagsInput.split(",").map(function(t){return t.trim();}).filter(Boolean):[];
   var recipe={id:existingId||null,name:name,description:document.getElementById("f-desc").value.trim(),servings:document.getElementById("f-srv").value,prepTime:document.getElementById("f-time").value.trim(),ingredients:ings,steps:steps,tags:manualTags};
   if(existing){recipe.createdBy=existing.createdBy;recipe.createdByName=existing.createdByName;}
