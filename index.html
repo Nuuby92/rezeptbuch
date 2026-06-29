@@ -863,7 +863,10 @@ window.submitImport=async function(){
   var statusEl=document.getElementById("import-status");
   var btn=document.getElementById("import-submit-btn");
   var text=document.getElementById("import-text").value.trim();
+  var urlEl=document.getElementById("import-url");
+  var url=urlEl?urlEl.value.trim():"";
   if(importTab==="text"&&!text){statusEl.textContent="Bitte Rezepttext einf\u00fcgen.";statusEl.style.color="var(--danger)";return;}
+  if(importTab==="url"&&!url){statusEl.textContent="Bitte einen Link eingeben.";statusEl.style.color="var(--danger)";return;}
   if(importTab==="image"&&!importImageBase64){statusEl.textContent="Bitte ein Bild ausw\u00e4hlen.";statusEl.style.color="var(--danger)";return;}
   btn.disabled=true;statusEl.textContent="Rezept wird analysiert\u2026";statusEl.style.color="var(--text-muted)";
   try {
