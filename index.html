@@ -920,9 +920,14 @@ async function autoCategorizRecipe(recipe) {
 
 function tagHtml(tag, clickable, active) {
   var cls = tagClass(tag) + (clickable ? " tag-filter" + (active ? " active" : "") : "");
-  var onclick = clickable ? ' onclick="toggleFilter(\'' + tag.replace(/'/g,"\\\'") + '\')"' : '';
-  return '<span class="' + cls + '"' + onclick + '>' + esc(tag) + '</span>';
+  var dataAttr = clickable ? ' data-tag="' + esc(tag) + '" onclick="handleTagClick(this)"' : '';
+  return '<span class="' + cls + '"' + dataAttr + '>' + esc(tag) + '</span>';
 }
+
+window.handleTagClick = function(el) {
+  var tag = el.getAttribute('data-tag');
+  if (tag) window.toggleFilter(tag);
+};
 
 window.toggleFilter = function(tag) {
   var idx = S.activeFilters.indexOf(tag);
