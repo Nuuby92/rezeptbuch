@@ -920,7 +920,7 @@ async function autoCategorizRecipe(recipe) {
 
 function tagHtml(tag, clickable, active) {
   var cls = tagClass(tag) + (clickable ? " tag-filter" + (active ? " active" : "") : "");
-  var onclick = clickable ? ' onclick="toggleFilter(' + JSON.stringify(tag) + ')"' : '';
+  var onclick = clickable ? ' onclick="toggleFilter(\'' + tag.replace(/'/g,"\\\'") + '\')"' : '';
   return '<span class="' + cls + '"' + onclick + '>' + esc(tag) + '</span>';
 }
 
