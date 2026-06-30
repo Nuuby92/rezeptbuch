@@ -718,52 +718,49 @@ function shopExportText() {
 }
 
 // ── Nutrition ──────────────────────────────────────────────────────────────
-var _baseNutritionCache = {};
-async function loadNutritionScaled(recipe, portions) {
-  S.nutrition=null; S.nutritionLoading=true; renderNutritionBox();
-  try {
-    var data;
-    // Cache der Basis-Berechnung (für servings) im Speicher pro Rezept-ID
-    if (recipe.id && _baseNutritionCache[recipe.id]) {
-      data = JSON.parse(JSON.stringify(_baseNutritionCache[recipe.id])); // deep copy
-    } else {
-      var ings=(recipe.ingredients||[]).filter(function(i){return i.name;}).map(function(i){return {name:i.name,amount:i.amount,unit:i.unit};});
-      var res=await fetch("/api/nutrition",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ingredients:ings,servings:recipe.servings||1})});
-      data=await res.json();
-      if (res.ok && recipe.id) _baseNutritionCache[recipe.id] = JSON.parse(JSON.stringify(data));
-    }
-    var res = { ok: !data.error };
-    if (res.ok && portions && parseInt(recipe.servings) && portions !== parseInt(recipe.servings)) {
-      var base=parseInt(recipe.servings);
-      var scale=portions/base;
-      data.perServing={
-        kcal:Math.round(data.total.kcal/portions),
-        protein:Math.round(data.total.protein/portions*10)/10,
-        carbs:Math.round(data.total.carbs/portions*10)/10,
-        fat:Math.round(data.total.fat/portions*10)/10,
-      };
-      data.servings=portions;
-    }
-    S.nutrition=res.ok?data:{error:data.error||"Fehler"};
-  } catch(e){S.nutrition={error:e.message};}
-  S.nutritionLoading=false; renderNutritionBox();
+function loadNutritionScaled(recipe, portions) {
+  // Nährwerte sind bereits im Rezept gespeichert (einmalig per KI berechnet beim Speichern)
+  if (!recipe.nutrition || !recipe.nutrition.total) {
+    S.nutrition = { error: "Keine Nährwerte gespeichert. Bitte Rezept einmal speichern um sie zu berechnen." };
+    renderNutritionBox();
+    return;
+  }
+
+  var baseServings = recipe.nutrition.baseServings || parseInt(recipe.servings) || 1;
+  var total = recipe.nutrition.total;
+  var scale = portions / baseServings;
+
+  var scaledTotal = {
+    kcal: Math.round(total.kcal * scale),
+    protein: Math.round(total.protein * scale * 10) / 10,
+    carbs: Math.round(total.carbs * scale * 10) / 10,
+    fat: Math.round(total.fat * scale * 10) / 10,
+  };
+
+  S.nutrition = {
+    total: scaledTotal,
+    perServing: {
+      kcal: Math.round(scaledTotal.kcal / portions),
+      protein: Math.round((scaledTotal.protein / portions) * 10) / 10,
+      carbs: Math.round((scaledTotal.carbs / portions) * 10) / 10,
+      fat: Math.round((scaledTotal.fat / portions) * 10) / 10,
+    },
+    servings: portions,
+  };
+  renderNutritionBox();
 }
 
-async function loadNutrition(recipe) {
-  S.nutrition=null; S.nutritionLoading=true; renderNutritionBox();
-  try {
-    var ings = (recipe.ingredients||[]).filter(function(i){return i.name;}).map(function(i){return {name:i.name,amount:i.amount,unit:i.unit};});
-    var res = await fetch("/api/nutrition",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ingredients:ings,servings:recipe.servings||1})});
-    var data = await res.json();
-    S.nutrition = res.ok ? data : { error: data.error||"Fehler" };
-  } catch(e) { S.nutrition={error:e.message}; }
-  S.nutritionLoading=false; renderNutritionBox();
-}
+
+
 function renderNutritionBox() { var el=document.getElementById("nutrition-box"); if(el) el.innerHTML=nutritionBoxHtml(); }
 function nutritionBoxHtml() {
   if (S.nutritionLoading) return '<div class="nutrition-loading"><div class="spinner spinner-sm"></div> N&auml;hrwerte werden berechnet&hellip;</div>';
   if (!S.nutrition) return "";
-  if (S.nutrition.error) return '<p style="font-size:13px;color:var(--text-muted);font-style:italic">N&auml;hrwerte konnten nicht geladen werden.</p>';
+  if (S.nutrition.error) {
+    var ownerView = S.viewing && isOwner(S.viewing);
+    return '<p style="font-size:13px;color:var(--text-muted);font-style:italic">' + esc(S.nutrition.error) + '</p>'
+      + (ownerView ? '<button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="recalcNutritionNow()">&#128202; Jetzt berechnen</button>' : '');
+  }
   var n = S.nutritionTab==="portion" ? S.nutrition.perServing : S.nutrition.total;
   return '<p class="nutrition-title">N&auml;hrwerte</p>'
     +'<div class="nutrition-tabs">'
@@ -1387,6 +1384,30 @@ function dayNutritionHtml(day) {
 
 // ── Wine recommendation ────────────────────────────────────────────────────
 var _wineCache = {};
+
+window.recalcNutritionNow = async function() {
+  var r = S.viewing; if (!r) return;
+  S.nutritionLoading = true; S.nutrition = null; renderNutritionBox();
+  try {
+    var ings = (r.ingredients||[]).filter(function(i){return i.name && i.amount;}).map(function(i){return {name:i.name,amount:i.amount,unit:i.unit};});
+    var res = await fetch("/api/nutrition", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ingredients: ings, servings: r.servings || 1})
+    });
+    var data = await res.json();
+    if (res.ok && data.total) {
+      r.nutrition = { total: data.total, baseServings: parseInt(r.servings)||1 };
+      // Im Hintergrund auch in Firebase speichern, damit es dauerhaft gespeichert bleibt
+      var saveData = Object.assign({}, r); var rid = saveData.id; delete saveData.id;
+      Object.keys(saveData).forEach(function(k){ if(saveData[k]===undefined) delete saveData[k]; });
+      var { setDoc, doc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+      await setDoc(doc(db, "recipes", rid), saveData);
+      toast("N\u00e4hrwerte berechnet und gespeichert \u2713");
+    }
+  } catch(e) {}
+  S.nutritionLoading = false;
+  loadNutritionScaled(r, S.scaledPortions || parseInt(r.servings) || 1);
+};
 
 window.loadWineRecommendation = async function() {
   var r = S.viewing; if (!r) return;
@@ -2039,6 +2060,20 @@ window.doSave=async function(existingId){
     var tags = await autoCategorizRecipe(recipe);
     if (tags.length > 0) recipe.tags = tags;
   }
+  // Nährwerte einmalig berechnen und im Rezept speichern
+  try {
+    var nutIngs = ings.filter(function(i){return i.name;}).map(function(i){return {name:i.name,amount:i.amount,unit:i.unit};});
+    if (nutIngs.length > 0) {
+      var nutRes = await fetch("/api/nutrition", {
+        method: "POST", headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ingredients: nutIngs, servings: recipe.servings || 1})
+      });
+      var nutData = await nutRes.json();
+      if (nutRes.ok && nutData.total) {
+        recipe.nutrition = { total: nutData.total, baseServings: parseInt(recipe.servings)||1 };
+      }
+    }
+  } catch(e) { /* Nährwerte konnten nicht berechnet werden, Rezept trotzdem speichern */ }
   await fbSaveRecipe(recipe);
   var changed=false;
   DAYS.forEach(function(day){
