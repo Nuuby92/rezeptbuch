@@ -440,6 +440,7 @@ var S = {
   scaledPortions: null,
   weekNutritionCache: {},
 };
+var ADMIN_UID = "GT7Tl6KduQbMF3OYt0S7OaNNejr1";
 var DAYS = ["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
 var MEALS = ["Frühstück","Mittagessen","Abendessen"];
 var MEAL_ICONS = {"Frühstück":"☀️","Mittagessen":"🍽️","Abendessen":"🌙"};
@@ -608,6 +609,7 @@ async function fbSaveWineList() {
 
 function isOwner(recipe) {
   if (!recipe || !S.user) return false;
+  if (S.user.uid === ADMIN_UID) return true; // Admin kann alles bearbeiten
   if (!recipe.createdBy) return true; // Legacy recipes without owner
   return recipe.createdBy === S.user.uid;
 }
