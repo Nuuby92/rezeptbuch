@@ -577,8 +577,15 @@ function initApp() {
 async function fbSaveRecipe(r) {
   var data = Object.assign({}, r);
   var id = data.id; delete data.id;
-  data.createdBy = S.user.uid;
-  data.createdByName = S.user.displayName || S.user.email;
+  // Bei fremden Rezepten (Admin-Bearbeitung) den ursprünglichen Ersteller behalten
+  if (!data.createdBy) {
+    data.createdBy = S.user.uid;
+    data.createdByName = S.user.displayName || S.user.email;
+  }
+  // Firestore akzeptiert kein "undefined" - alle solchen Felder entfernen
+  Object.keys(data).forEach(function(key) {
+    if (data[key] === undefined) delete data[key];
+  });
   if (id) { await setDoc(doc(db, "recipes", id), data); }
   else { await addDoc(collection(db, "recipes"), data); }
 }
@@ -2024,7 +2031,7 @@ window.doSave=async function(existingId){
   var existing=existingId?S.recipes.find(function(r){return r.id===existingId;}):null;
   var existing = existingId ? S.recipes.find(function(r){return r.id===existingId;}) : null;
   var existingTags = existing ? (existing.tags||[]) : [];
-  var photo = _photoRemoved ? null : (_pendingPhotoBase64 || (existing ? existing.photo : null));
+  var photo = _photoRemoved ? null : (_pendingPhotoBase64 || (existing && existing.photo ? existing.photo : null));
   var recipe={id:existingId||null,name:name,description:document.getElementById("f-desc").value.trim(),servings:document.getElementById("f-srv").value,prepTime:document.getElementById("f-time").value.trim(),ingredients:ings,steps:steps,tags:existingTags,photo:photo};
   if(existing){recipe.createdBy=existing.createdBy;recipe.createdByName=existing.createdByName;}
   // Auto-categorize if no tags yet
