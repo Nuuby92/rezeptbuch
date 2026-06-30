@@ -153,6 +153,9 @@ module.exports = async function handler(req, res) {
     "kimchi": "kimchi", "sriracha": "sriracha sauce",
     "pak choi": "bok choy raw", "edamame": "edamame",
     "currypaste": "curry paste", "curry paste": "curry paste",
+    "hahnchenflugel": "chicken wings raw", "hähnchenflügel": "chicken wings raw",
+    "hahnchenflugel mit knochen": "chicken wings raw", "chicken wings": "chicken wings raw",
+    "reissirup": "rice syrup", "reissirup ": "rice syrup",
     "rote currypaste": "curry paste", "grüne currypaste": "curry paste",
     "kokosmilch": "coconut milk canned", "kokosnussmilch": "coconut milk canned",
     "kichererbsen": "chickpeas canned", "kichererbsen dose": "chickpeas canned",
@@ -247,6 +250,9 @@ module.exports = async function handler(req, res) {
     "red wine":         { kcal: 85,  protein: 0.1, carbs: 2.6,  fat: 0.0 },
     "white wine":       { kcal: 82,  protein: 0.1, carbs: 2.6,  fat: 0.0 },
     "dumpling wrapper":  { kcal: 291, protein: 9.8, carbs: 58.0, fat: 2.0 },
+    "chicken wings raw": { kcal: 203, protein: 18.4, carbs: 0.0, fat: 13.5 },
+    "rice syrup":        { kcal: 316, protein: 0.1, carbs: 78.0, fat: 0.2 },
+    "frying oil":        { kcal: 884, protein: 0.0, carbs: 0.0,  fat: 100.0 },
     "chili oil":         { kcal: 820, protein: 0.0, carbs: 0.0,  fat: 92.0 },
     "chili crisp":       { kcal: 600, protein: 5.0, carbs: 15.0, fat: 55.0 },
     "chili crunch":      { kcal: 600, protein: 5.0, carbs: 15.0, fat: 55.0 },
@@ -429,7 +435,15 @@ module.exports = async function handler(req, res) {
 
       const cleanedName = cleanIngredientName(ing.name);
       const englishName = translateIngredient(ing.name);
-      const grams = parseGrams(ing.amount, ing.unit, ing.name);
+      let grams = parseGrams(ing.amount, ing.unit, ing.name);
+
+      // Frittieröl-Erkennung: Wenn "Öl" in großer Menge (>200g) angegeben ist,
+      // wird in der Praxis nur ein Bruchteil tatsächlich aufgenommen (~8-10%)
+      const isOil = /\böl\b|\boil\b/i.test(ing.name) && !/(sesam|oliven|walnuss|leinsamen)/i.test(ing.name);
+      if (isOil && grams > 200) {
+        grams = grams * 0.08; // nur 8% des Frittieröls wird tatsächlich aufgenommen
+      }
+
       const factor = grams / 100;
 
       let kcal = 0, protein = 0, carbs = 0, fat = 0;
