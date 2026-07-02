@@ -1892,13 +1892,11 @@ async function loadWeekSuggestions(key) {
   // Prompt für Claude
   var plannedText = planned.map(function(p){
     return p.day + " " + p.meal + ": " + p.name + (p.tags.length?" ("+p.tags.join(", ")+")":"");
-  }).join("
-");
+  }).join("\n");
 
   var availableText = available.map(function(r){
     return r.id + "|" + r.name + (r.tags&&r.tags.length?" ("+r.tags.join(", ")+")":"");
-  }).join("
-");
+  }).join("\n");
 
   try {
     var res = await fetch("/api/suggest", {
