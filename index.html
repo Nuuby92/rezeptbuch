@@ -1101,7 +1101,6 @@ window.submitPwChange = async function() {
   statusEl.style.color = "var(--text-muted)";
 
   try {
-    var { updatePassword } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
     await updatePassword(auth.currentUser, newPw);
     statusEl.textContent = "Passwort erfolgreich geändert! ✓";
     statusEl.style.color = "var(--green-dark)";
@@ -1400,7 +1399,6 @@ window.recalcNutritionNow = async function() {
       // Im Hintergrund auch in Firebase speichern, damit es dauerhaft gespeichert bleibt
       var saveData = Object.assign({}, r); var rid = saveData.id; delete saveData.id;
       Object.keys(saveData).forEach(function(k){ if(saveData[k]===undefined) delete saveData[k]; });
-      var { setDoc, doc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
       await setDoc(doc(db, "recipes", rid), saveData);
       toast("N\u00e4hrwerte berechnet und gespeichert \u2713");
     }
