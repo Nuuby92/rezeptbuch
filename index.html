@@ -1835,6 +1835,8 @@ function openWeekModal(key){
   document.getElementById("modal-search").value="";
   document.getElementById("modal").classList.add("open");
   renderModalList("");
+  // AI-Vorschläge im Hintergrund laden
+  loadWeekSuggestions(key);
 }
 window.openWeekModal=openWeekModal;
 
@@ -1861,6 +1863,87 @@ function openDayModal(recipeId){
 
 window.filterModal=function(q){renderModalList(q);};
 
+var _weekSuggestions = []; // Cache für KI-Vorschläge
+
+async function loadWeekSuggestions(key) {
+  _weekSuggestions = [];
+  var parts = key.split("__");
+  var day = parts[0];
+  var meal = parts[1];
+
+  // Alle bereits geplanten Rezepte sammeln
+  var planned = [];
+  DAYS.forEach(function(d) {
+    MEALS.forEach(function(m) {
+      var entry = S.weekPlan[d+"__"+m];
+      if (!entry) return;
+      var r = entry.recipe || entry;
+      planned.push({ day: d, meal: m, name: r.name, tags: r.tags||[] });
+    });
+  });
+
+  if (planned.length === 0 || S.recipes.length === 0) return;
+
+  // Bereits verwendete Rezeptnamen
+  var usedNames = planned.map(function(p){ return p.name; });
+
+  // Verfügbare Rezepte (noch nicht diese Woche verwendet)
+  var available = S.recipes.filter(function(r){ return usedNames.indexOf(r.name) < 0; });
+  if (available.length === 0) available = S.recipes;
+
+  // Prompt für Claude
+  var plannedText = planned.map(function(p){
+    return p.day + " " + p.meal + ": " + p.name + (p.tags.length?" ("+p.tags.join(", ")+")":"");
+  }).join("
+");
+
+  var availableText = available.map(function(r){
+    return r.id + "|" + r.name + (r.tags&&r.tags.length?" ("+r.tags.join(", ")+")":"");
+  }).join("
+");
+
+  try {
+    var res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 300,
+        messages: [{
+          role: "user",
+          content: "Ich plane eine Woche Essen. Bisher eingeplant:
+" + plannedText
+            + "
+
+Ich suche jetzt ein Rezept für: " + day + " " + meal
+            + "
+
+Verfügbare Rezepte (ID|Name|Tags):
+" + availableText
+            + "
+
+Wähle die 3 besten Rezepte aus die für Abwechslung sorgen (nicht zu viel vom gleichen: kein Pasta auf Pasta, Proteinquellen wechseln, etc.). Antworte NUR mit JSON:
+[{"id":"...","reason":"Kurze Begründung auf Deutsch (max 8 Worte)"}]"
+        }]
+      })
+    });
+    var data = await res.json();
+    var raw = data.content[0].text.trim().replace(/^```json?\s*/i,"").replace(/```\s*$/i,"").trim();
+    var suggestions = JSON.parse(raw);
+    if (Array.isArray(suggestions)) {
+      _weekSuggestions = suggestions.filter(function(s){
+        return s.id && S.recipes.find(function(r){ return r.id === s.id; });
+      });
+      // Modal aktualisieren falls noch offen
+      var searchVal = document.getElementById("modal-search");
+      renderModalList(searchVal ? searchVal.value : "");
+    }
+  } catch(e) { /* Vorschläge konnten nicht geladen werden */ }
+}
+
 // Mapping Mahlzeit → passende Tags
 var MEAL_TAG_MAP = {
   "Frühstück":  ["Frühstück"],
@@ -1873,43 +1956,65 @@ function renderModalList(q){
   var el=document.getElementById("modal-list");if(!el)return;
   if(list.length===0){el.innerHTML='<p style="color:var(--text-muted);font-size:14px;text-align:center;padding:20px">Keine Rezepte gefunden.</p>';return;}
 
-  // Split by meal relevance if a meal is selected
   var mealKey = S.modalDay ? S.modalDay.split("__")[1] : null;
   var matchTags = mealKey ? (MEAL_TAG_MAP[mealKey] || []) : [];
 
-  var matching = [];
-  var others = [];
-
-  list.forEach(function(r){
-    var rTags = r.tags || [];
-    var isMatch = matchTags.length > 0 && matchTags.some(function(t){ return rTags.indexOf(t) >= 0; });
-    if(isMatch) matching.push(r);
-    else others.push(r);
-  });
-
-  function recipeBtn(r) {
+  function recipeBtn(r, reason) {
     return '<button class="modal-opt" onclick="assignWeek(\''+r.id+'\')">'
-      +esc(r.name)
-      +(r.prepTime?'<span style="font-size:12px;color:var(--text-muted)">'+esc(r.prepTime)+'</span>':"")
-      +'</button>';
+      + esc(r.name)
+      + (reason ? '<span style="font-size:11px;color:var(--green-dark);font-weight:500">'+esc(reason)+'</span>' : (r.prepTime?'<span style="font-size:12px;color:var(--text-muted)">'+esc(r.prepTime)+'</span>':""))
+      + '</button>';
   }
 
   var html = "";
+  var usedIds = {};
 
-  if(matching.length > 0 && others.length > 0) {
-    // Show section header for matching
-    html += '<div style="font-size:10px;font-weight:800;color:var(--green-darkest);text-transform:uppercase;letter-spacing:1px;padding:6px 4px 4px">' + (mealKey||"") + ' – Passende Rezepte ('+matching.length+')</div>';
-    matching.forEach(function(r){ html += recipeBtn(r); });
+  // Section 1: KI-Vorschläge (falls vorhanden)
+  if (_weekSuggestions.length > 0) {
+    var suggestionRecipes = _weekSuggestions
+      .map(function(s){ return { recipe: S.recipes.find(function(r){ return r.id===s.id; }), reason: s.reason }; })
+      .filter(function(s){ return s.recipe && s.recipe.name.toLowerCase().indexOf(q.toLowerCase()) >= 0; });
+
+    if (suggestionRecipes.length > 0) {
+      html += '<div style="font-size:10px;font-weight:800;color:#7C3AED;text-transform:uppercase;letter-spacing:1px;padding:6px 4px 4px">&#10024; KI-Vorschläge für Abwechslung</div>';
+      suggestionRecipes.forEach(function(s){
+        html += recipeBtn(s.recipe, s.reason);
+        usedIds[s.recipe.id] = true;
+      });
+      html += '<div style="height:1px;background:var(--border);margin:8px 0"></div>';
+    }
+  } else if (Object.keys(S.weekPlan).length > 0) {
+    // Noch laden
+    html += '<div style="font-size:12px;color:var(--text-muted);padding:6px 4px;display:flex;align-items:center;gap:6px"><div class="spinner spinner-sm"></div> Vorschläge werden berechnet…</div>';
     html += '<div style="height:1px;background:var(--border);margin:8px 0"></div>';
-    html += '<div style="font-size:10px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;padding:4px 4px">' + "Alle anderen (" + others.length + ")</div>";
-    others.forEach(function(r){ html += recipeBtn(r); });
-  } else {
-    list.forEach(function(r){ html += recipeBtn(r); });
+  }
+
+  // Section 2: Passende Rezepte (nach Mahlzeit)
+  var matching = list.filter(function(r){
+    if(usedIds[r.id]) return false;
+    var rTags = r.tags || [];
+    return matchTags.length > 0 && matchTags.some(function(t){ return rTags.indexOf(t) >= 0; });
+  });
+  var others = list.filter(function(r){
+    if(usedIds[r.id]) return false;
+    var rTags = r.tags || [];
+    return !(matchTags.length > 0 && matchTags.some(function(t){ return rTags.indexOf(t) >= 0; }));
+  });
+
+  if(matching.length > 0) {
+    html += '<div style="font-size:10px;font-weight:800;color:var(--green-darkest);text-transform:uppercase;letter-spacing:1px;padding:6px 4px 4px">' + (mealKey||"Alle") + ' – Passend ('+matching.length+')</div>';
+    matching.forEach(function(r){ html += recipeBtn(r, null); });
+  }
+
+  if(others.length > 0) {
+    if(matching.length > 0) html += '<div style="height:1px;background:var(--border);margin:8px 0"></div>';
+    html += '<div style="font-size:10px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;padding:4px 4px">Alle anderen ('+others.length+')</div>';
+    others.forEach(function(r){ html += recipeBtn(r, null); });
   }
 
   el.innerHTML=html;
 }
-window.closeModal=function(){document.getElementById("modal").classList.remove("open");};
+window.closeModal=function(){document.getElementById("modal").classList.remove("open");_weekSuggestions=[];};
 window.onModalBgClick=function(e){if(e.target===document.getElementById("modal"))window.closeModal();};
 
 window.assignWeek=async function(rid){
