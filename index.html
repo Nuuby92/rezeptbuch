@@ -1925,45 +1925,6 @@ var MEAL_TAG_MAP = {
 
 var _weekSuggestions = [];
 
-async function loadWeekSuggestions(key) {
-  _weekSuggestions = [];
-  var parts = key.split("__");
-  var day = parts[0];
-  var meal = parts[1] || "";
-
-  var planned = [];
-  DAYS.forEach(function(d) {
-    MEALS.forEach(function(m) {
-      var entry = S.weekPlan[d+"__"+m];
-      if (!entry) return;
-      var r = entry.recipe || entry;
-      planned.push({day:d, meal:m, name:r.name, tags:r.tags||[]});
-    });
-  });
-
-  if (planned.length === 0 || S.recipes.length === 0) return;
-
-  var usedNames = planned.map(function(p){ return p.name; });
-  var available = S.recipes.filter(function(r){ return usedNames.indexOf(r.name) < 0; });
-  if (available.length === 0) available = S.recipes.slice();
-
-  try {
-    var res = await fetch("/api/suggest", {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({planned:planned, available:available.slice(0,30).map(function(r){return {id:r.id,name:r.name,tags:r.tags||[]};}), day:day, meal:meal})
-    });
-    var data = await res.json();
-    var suggestions = data.suggestions || [];
-    if (Array.isArray(suggestions) && suggestions.length > 0) {
-      _weekSuggestions = suggestions.filter(function(s){
-        return s.id && S.recipes.find(function(r){ return r.id === s.id; });
-      });
-      var searchEl = document.getElementById("modal-search");
-      if (searchEl) renderModalList(searchEl.value || "");
-    }
-  } catch(e) {}
-}
 
 window.filterModal = function(q){ renderModalList(q); };
 
