@@ -2304,4 +2304,2327 @@ window.toggleTheme = function(){
 history.replaceState({tab:S.tab,view:"list",viewingId:null},"","?tab="+S.tab);
 </script>
 </body>
+</html>      // Accent color by tag
+      var _aC={'Fleisch':'#EF4444','Gefluegel':'#F97316','Geflügel':'#F97316','Fisch':'#3B82F6','Vegetarisch':'#22C55E','Vegan':'#10B981','Dessert':'#EC4899','Frühstück':'#F59E0B','Fruhstuck':'#F59E0B'};
+      var _ac='var(--accent)';(r.tags||[]).forEach(function(t){if(_aC[t])_ac=_aC[t];});
+      cards+='<div class="card recipe-card" onclick="doView(\''+r.id+'\')"><div style="display:flex;align-items:stretch"><div style="width:4px;background:'+_ac+';flex-shrink:0;border-radius:4px 0 0 4px"></div><div style="padding:18px 18px 14px 16px;flex:1;min-width:0"><div style="display:flex;align-items:flex-start;gap:14px">'
+        +thumb
+        +'<div style="flex:1;min-width:0">'
+        +'<div class="recipe-name">'+esc(r.name)+'</div>'
+        +(r.description?'<div class="recipe-desc" style="-webkit-line-clamp:2;display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden">'+esc(r.description)+'</div>':"")
+        +'<div class="recipe-meta">'
+        +(r.servings?'<span>'+svg(I.users,12)+' '+esc(r.servings)+' Portionen</span>':"")
+        +(r.prepTime?'<span>'+svg(I.clock,12)+' '+esc(r.prepTime)+'</span>':"")
+        +'<span>'+ings+' Zutaten</span></div>'
+        +(r.createdByName&&!owner?'<div class="recipe-author">von '+esc(r.createdByName)+'</div>':"")
+        +((r.tags&&r.tags.length)?'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">'+(r.tags||[]).slice(0,4).map(function(t){return tagHtml(t,false,false);}).join("")+'</div>':"")
+        +'</div>'
+        +'<div class="card-actions" onclick="event.stopPropagation()">'
+        +(owner?'<button class="btn btn-ghost btn-icon" onclick="doEdit(\''+r.id+'\')">'+svg(I.edit)+'</button>':"")
+        +(owner?'<button class="btn btn-danger btn-icon" onclick="doDelete(\''+r.id+'\')">'+svg(I.trash)+'</button>':'<span style="padding:6px;color:var(--text-3)">'+svg(I.lock,15)+'</span>')
+        +'</div></div></div></div></div>';
+    });d>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mein Rezeptbuch</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#FAFAF8; --bg-2:#F2F2EF; --surface:#FFFFFF; --surface-2:#F7F7F5;
+      --border:#E5E5E0; --border-2:#D4D4CF;
+      --text:#111110; --text-2:#3D3D3A; --text-3:#78786E;
+      --accent:#16A34A; --accent-dark:#15803D; --accent-light:#DCFCE7; --accent-faint:#F0FDF4;
+      --danger:#DC2626; --danger-bg:#FEF2F2;
+      --bring:#F97316; --bring-dark:#EA6C0A;
+      --shadow-sm:0 1px 3px rgba(0,0,0,.06); --shadow-md:0 4px 12px rgba(0,0,0,.08); --shadow-lg:0 12px 32px rgba(0,0,0,.12);
+      --radius-sm:8px; --radius-md:14px; --radius-lg:20px; --radius-xl:28px;
+    }
+    [data-theme="dark"] {
+      --bg:#0F1117; --bg-2:#161820; --surface:#1A1D27; --surface-2:#20232E;
+      --border:#2A2D3A; --border-2:#363944;
+      --text:#F0EFE9; --text-2:#C4C3BB; --text-3:#7A7970;
+      --accent:#22C55E; --accent-dark:#16A34A; --accent-light:#052E16; --accent-faint:#071A0F;
+      --danger:#F87171; --danger-bg:#1F0A0A;
+      --shadow-sm:0 1px 3px rgba(0,0,0,.3); --shadow-md:0 4px 12px rgba(0,0,0,.4); --shadow-lg:0 12px 32px rgba(0,0,0,.5);
+    }
+    html { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--text); font-size:15px; -webkit-font-smoothing:antialiased; }
+    body { min-height:100vh; }
+    button { font-family:inherit; cursor:pointer; border:none; outline:none; }
+    input,textarea,select { font-family:inherit; }
+    input:focus,textarea:focus,select:focus { border-color:var(--accent)!important; outline:none; box-shadow:0 0 0 3px rgba(34,197,94,.12); }
+    #app { display:flex; flex-direction:column; min-height:100vh; }
+    main { max-width:860px; margin:0 auto; padding:32px 20px; flex:1; width:100%; }
+    header { background:var(--surface); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:50; }
+    .header-inner { max-width:860px; margin:0 auto; padding:0 20px; display:flex; align-items:center; justify-content:space-between; height:64px; gap:8px; }
+    .logo { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+    .logo-icon { width:34px; height:34px; border-radius:10px; background:linear-gradient(135deg,var(--accent-dark),var(--accent)); display:flex; align-items:center; justify-content:center; }
+    .logo-text { font-family:'Plus Jakarta Sans',sans-serif; font-weight:800; font-size:17px; letter-spacing:-.3px; }
+    nav { display:flex; gap:2px; }
+    .nav-btn { display:flex; align-items:center; gap:6px; padding:7px 12px; border-radius:var(--radius-sm); background:transparent; color:var(--text-3); font-size:13px; font-weight:600; transition:all .15s; border:none; cursor:pointer; white-space:nowrap; }
+    .nav-btn.active { background:var(--accent-light); color:var(--accent-dark); }
+    [data-theme="dark"] .nav-btn.active { color:var(--accent); }
+    .nav-btn:hover:not(.active) { background:var(--surface-2); color:var(--text-2); }
+    .btn { display:inline-flex; align-items:center; gap:7px; padding:9px 18px; border-radius:var(--radius-sm); font-size:13.5px; font-weight:600; transition:all .15s; border:none; cursor:pointer; white-space:nowrap; font-family:inherit; }
+    .btn-primary { background:var(--accent); color:#fff; box-shadow:0 2px 8px rgba(34,197,94,.2); }
+    .btn-primary:hover { background:var(--accent-dark); transform:translateY(-1px); }
+    .btn-secondary { background:var(--surface-2); color:var(--text-2); border:1px solid var(--border); }
+    .btn-secondary:hover { background:var(--bg-2); border-color:var(--border-2); color:var(--text); }
+    .btn-ghost { background:transparent; color:var(--text-3); }
+    .btn-ghost:hover { background:var(--surface-2); color:var(--text-2); }
+    .btn-danger { background:var(--danger-bg); color:var(--danger); }
+    .btn-bring { background:var(--bring); color:#fff; }
+    .btn-bring:hover { background:var(--bring-dark); transform:translateY(-1px); }
+    .btn-sm { padding:6px 12px; font-size:12.5px; }
+    .btn-icon { padding:7px; }
+    .remove-btn { background:var(--danger-bg); color:var(--danger); border:none; border-radius:6px; padding:5px; display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; transition:all .15s; }
+    .remove-btn:hover { background:var(--danger); color:#fff; }
+    .card { background:var(--surface); border-radius:var(--radius-lg); border:1px solid var(--border); box-shadow:var(--shadow-sm); transition:box-shadow .2s,border-color .2s; }
+    .card:hover { box-shadow:var(--shadow-md); border-color:var(--border-2); }
+    .field { display:flex; flex-direction:column; gap:5px; }
+    .field label { font-size:11.5px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.7px; }
+    .inp { border:1.5px solid var(--border); border-radius:var(--radius-sm); padding:9px 12px; font-size:14px; color:var(--text); background:var(--surface); width:100%; transition:border-color .15s; font-family:inherit; }
+    .inp::placeholder { color:var(--text-3); }
+    .inp-sm { padding:7px 10px; font-size:13px; }
+    .unit-sel { appearance:none; -webkit-appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2378786E'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 8px center; padding-right:24px!important; cursor:pointer; }
+    .section-hd { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px; }
+    .section-hd h2 { font-family:'Plus Jakarta Sans',sans-serif; font-size:24px; font-weight:800; letter-spacing:-.4px; }
+    .section-label { font-size:11px; font-weight:800; color:var(--accent); text-transform:uppercase; letter-spacing:1px; margin-bottom:14px; }
+    .recipe-grid { display:flex; flex-direction:column; gap:10px; }
+    .recipe-card { padding:0; cursor:pointer; }
+    .recipe-card-inner { display:flex; align-items:stretch; }
+    .recipe-card-accent { width:4px; flex-shrink:0; transition:width .2s; }
+    .recipe-card:hover .recipe-card-accent { width:6px; }
+    .recipe-card-content { padding:20px 20px 16px 18px; flex:1; min-width:0; }
+    .recipe-card-top { display:flex; align-items:flex-start; gap:14px; }
+    .recipe-card-top { display:flex; align-items:flex-start; gap:14px; padding-top:2px; }
+    .recipe-card-body { flex:1; min-width:0; }
+    .recipe-name { font-family:'Plus Jakarta Sans',sans-serif; font-weight:700; font-size:16px; margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; letter-spacing:-.2px; }
+    .recipe-desc { font-size:13px; color:var(--text-3); margin-bottom:10px; }
+    .recipe-meta { display:flex; gap:12px; flex-wrap:wrap; }
+    .recipe-meta span { font-size:12px; color:var(--text-3); display:flex; align-items:center; gap:4px; }
+    .recipe-author { font-size:11px; color:var(--text-3); margin-top:5px; font-style:italic; }
+    .card-actions { display:flex; gap:4px; flex-shrink:0; align-items:center; }
+    .search-wrap { position:relative; margin-bottom:16px; }
+    .search-icon { position:absolute; left:13px; top:50%; transform:translateY(-50%); pointer-events:none; color:var(--text-3); }
+    .search-input { width:100%; border:1.5px solid var(--border); border-radius:var(--radius-md); padding:11px 14px 11px 40px; font-size:14px; background:var(--surface); font-family:inherit; color:var(--text); }
+    .search-input:focus { border-color:var(--accent); outline:none; }
+    .empty { text-align:center; padding:64px 24px; color:var(--text-3); }
+    .empty-icon { font-size:48px; margin-bottom:16px; }
+    .empty h3 { font-family:'Plus Jakarta Sans',sans-serif; font-size:18px; font-weight:700; color:var(--text-2); margin-bottom:8px; }
+    .detail-card { padding:32px; }
+    .detail-title { font-family:'Plus Jakarta Sans',sans-serif; font-size:30px; font-weight:800; margin-bottom:8px; letter-spacing:-.5px; }
+    .detail-desc { color:var(--text-3); font-size:15px; margin-bottom:20px; line-height:1.6; }
+    .detail-meta { display:flex; gap:20px; flex-wrap:wrap; padding-bottom:20px; border-bottom:1px solid var(--border); margin-bottom:24px; }
+    .detail-meta span { display:flex; align-items:center; gap:7px; font-size:13.5px; color:var(--text-3); }
+    .ingredient-list { list-style:none; margin-bottom:28px; }
+    .ingredient-list li { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--border); font-size:14.5px; flex-wrap:nowrap; }
+    .ing-dot { width:6px; height:6px; border-radius:50%; background:var(--accent); flex-shrink:0; }
+    .ing-amount { font-weight:700; min-width:80px; color:var(--accent); font-size:13.5px; }
+    .steps-list { list-style:none; margin-bottom:32px; }
+    .step-item { display:flex; gap:16px; margin-bottom:18px; }
+    .step-num { min-width:32px; height:32px; border-radius:50%; background:var(--accent-light); color:var(--accent-dark); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; flex-shrink:0; }
+    [data-theme="dark"] .step-num { color:var(--accent); }
+    .step-text { font-size:14.5px; color:var(--text-2); line-height:1.7; padding-top:5px; }
+    .detail-actions { display:flex; gap:8px; flex-wrap:wrap; padding-top:20px; border-top:1px solid var(--border); }
+    .form-card { padding:28px; }
+    .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .col2 { grid-column:1/-1; }
+    .form-section { margin-top:26px; }
+    .form-section-hd { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+    .form-section-label { font-size:11px; font-weight:800; color:var(--accent); text-transform:uppercase; letter-spacing:1px; }
+    .ing-row { display:grid; grid-template-columns:72px 88px 1fr 32px; gap:8px; align-items:center; margin-bottom:8px; }
+    .step-row { display:flex; gap:12px; align-items:flex-start; margin-bottom:10px; }
+    .step-row-num { min-width:28px; height:28px; border-radius:50%; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; flex-shrink:0; margin-top:7px; }
+    .form-footer { display:flex; gap:10px; justify-content:flex-end; padding-top:20px; border-top:1px solid var(--border); margin-top:24px; }
+    .week-grid { display:flex; flex-direction:column; gap:10px; }
+    .week-tag { background:var(--accent-light); color:var(--accent-dark); border-radius:20px; padding:4px 12px; font-size:13px; font-weight:600; }
+    [data-theme="dark"] .week-tag { color:var(--accent); }
+    .week-empty { background:transparent; border:1.5px dashed var(--border-2); border-radius:var(--radius-sm); padding:7px 14px; font-size:13px; color:var(--text-3); cursor:pointer; flex:1; text-align:left; font-family:inherit; transition:all .15s; }
+    .week-empty:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-faint); }
+    .combined-box { margin-top:28px; background:var(--surface-2); border-radius:var(--radius-md); padding:20px; border:1px solid var(--border); }
+    .combined-box h3 { font-size:11px; font-weight:800; color:var(--accent); text-transform:uppercase; letter-spacing:1px; margin-bottom:14px; }
+    .combined-items { columns:2; column-gap:24px; }
+    .combined-item { font-size:13.5px; color:var(--text-2); padding:3px 0; display:flex; gap:8px; break-inside:avoid; }
+    .shop-box { background:var(--surface-2); border-radius:var(--radius-md); padding:20px; border:1px solid var(--border); margin-bottom:16px; }
+    .shop-item { display:flex; align-items:center; gap:12px; cursor:pointer; padding:8px 0; user-select:none; border-bottom:1px solid var(--border); }
+    .shop-item:last-child { border-bottom:none; }
+    .shop-item span { font-size:14px; color:var(--text-2); }
+    .shop-item.done { opacity:.5; }
+    .shop-item.done span { text-decoration:line-through; }
+    .chk { width:20px; height:20px; border-radius:6px; border:2px solid var(--border-2); background:transparent; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all .15s; }
+    .chk.on { background:var(--accent); border-color:var(--accent); }
+    .nutrition-box { background:var(--surface-2); border-radius:var(--radius-md); border:1px solid var(--border); padding:20px; margin-bottom:24px; }
+    .nutrition-title { font-size:11px; font-weight:800; color:var(--accent); text-transform:uppercase; letter-spacing:1px; margin-bottom:14px; }
+    .nutrition-tabs { display:flex; gap:6px; margin-bottom:14px; }
+    .nutrition-tab { padding:5px 14px; border-radius:20px; font-size:13px; font-weight:600; cursor:pointer; border:1.5px solid var(--border); background:transparent; color:var(--text-3); transition:all .15s; }
+    .nutrition-tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+    .nutrition-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+    .nutrition-stat { background:var(--surface); border-radius:var(--radius-sm); padding:14px 12px; text-align:center; border:1px solid var(--border); }
+    .nutrition-stat-val { font-family:'Plus Jakarta Sans',sans-serif; font-size:24px; font-weight:800; color:var(--text); line-height:1; letter-spacing:-.5px; }
+    .nutrition-stat-unit { font-size:11px; color:var(--text-3); margin-top:2px; }
+    .nutrition-stat-label { font-size:12px; font-weight:600; color:var(--text-3); margin-top:6px; }
+    .nutrition-loading { text-align:center; color:var(--text-3); font-size:14px; padding:16px 0; display:flex; align-items:center; justify-content:center; gap:8px; }
+    .nutrition-hint { font-size:11px; color:var(--text-3); margin-top:10px; }
+    .tag { display:inline-flex; align-items:center; gap:3px; padding:3px 9px; border-radius:20px; font-size:11px; font-weight:600; white-space:nowrap; }
+    .tag-meal { background:#EFF6FF; color:#1D4ED8; }
+    .tag-ingredient { background:var(--accent-light); color:var(--accent-dark); }
+    .tag-cuisine { background:#FFF7ED; color:#C2410C; }
+    .tag-type { background:#F5F3FF; color:#6D28D9; }
+    .tag-effort { background:#FDF4FF; color:#86198F; }
+    [data-theme="dark"] .tag-meal { background:#1E3A5F; color:#93C5FD; }
+    [data-theme="dark"] .tag-ingredient { background:var(--accent-light); color:var(--accent); }
+    [data-theme="dark"] .tag-cuisine { background:#3B1F0A; color:#FB923C; }
+    [data-theme="dark"] .tag-type { background:#2E1F5E; color:#C4B5FD; }
+    [data-theme="dark"] .tag-effort { background:#3B0764; color:#E879F9; }
+    .tag-filter { cursor:pointer; transition:all .15s; }
+    .tag-filter:hover { opacity:.8; }
+    .tag-filter.active { box-shadow:0 0 0 2px currentColor; }
+    .filter-panel { background:var(--surface); border-radius:var(--radius-md); border:1px solid var(--border); padding:18px; margin-bottom:16px; box-shadow:var(--shadow-sm); }
+    .filter-section { margin-bottom:14px; }
+    .filter-section:last-child { margin-bottom:0; }
+    .filter-section-label { font-size:10px; font-weight:800; color:var(--text-3); text-transform:uppercase; letter-spacing:1px; margin-bottom:7px; }
+    .filter-tags { display:flex; flex-wrap:wrap; gap:5px; }
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:200; display:none; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(4px); }
+    .modal-overlay.open { display:flex; }
+    .modal-box { background:var(--surface); border-radius:var(--radius-xl); padding:26px; max-width:420px; width:100%; max-height:88vh; display:flex; flex-direction:column; box-shadow:var(--shadow-lg); border:1px solid var(--border); }
+    .modal-hd { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+    .modal-hd h3 { font-family:'Plus Jakarta Sans',sans-serif; font-size:17px; font-weight:800; letter-spacing:-.2px; }
+    .modal-search { border:1.5px solid var(--border); border-radius:var(--radius-sm); padding:9px 12px; font-size:14px; width:100%; margin-bottom:12px; font-family:inherit; background:var(--surface-2); color:var(--text); }
+    .modal-list { overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:6px; }
+    .modal-opt { background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:11px 14px; text-align:left; cursor:pointer; font-size:13.5px; font-weight:600; color:var(--text); font-family:inherit; display:flex; justify-content:space-between; align-items:center; transition:all .15s; }
+    .modal-opt:hover { background:var(--accent-light); border-color:var(--accent); color:var(--accent-dark); }
+    [data-theme="dark"] .modal-opt:hover { color:var(--accent); }
+    .bring-info { background:#FFF7ED; border:1px solid #FED7AA; border-radius:var(--radius-sm); padding:12px 14px; font-size:13px; color:#92400E; margin-bottom:16px; line-height:1.5; }
+    [data-theme="dark"] .bring-info { background:#3B1F0A; border-color:#92400E; color:#FED7AA; }
+    .bring-fields { display:flex; flex-direction:column; gap:10px; margin-bottom:16px; }
+    .bring-footer { display:flex; gap:8px; justify-content:flex-end; }
+    .bring-status { font-size:13px; color:var(--text-3); text-align:center; padding:8px 0; min-height:24px; }
+    .bring-status.ok { color:var(--accent); font-weight:600; }
+    .bring-status.err { color:var(--danger); }
+    .bring-saved { font-size:12px; color:var(--text-3); margin-top:4px; }
+    .auth-wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; background:var(--bg); }
+    .auth-card { background:var(--surface); border-radius:var(--radius-xl); padding:40px; max-width:420px; width:100%; border:1px solid var(--border); box-shadow:var(--shadow-lg); }
+    .auth-logo { display:flex; align-items:center; gap:12px; margin-bottom:32px; }
+    .auth-logo-icon { width:46px; height:46px; border-radius:14px; background:linear-gradient(135deg,var(--accent-dark),var(--accent)); display:flex; align-items:center; justify-content:center; }
+    .auth-logo-text { font-family:'Plus Jakarta Sans',sans-serif; font-weight:800; font-size:22px; letter-spacing:-.4px; }
+    .auth-tabs { display:flex; gap:0; margin-bottom:26px; border-radius:var(--radius-sm); background:var(--surface-2); padding:4px; border:1px solid var(--border); }
+    .auth-tab { flex:1; padding:8px; border-radius:6px; font-size:13.5px; font-weight:600; text-align:center; cursor:pointer; border:none; background:transparent; color:var(--text-3); transition:all .15s; }
+    .auth-tab.active { background:var(--surface); color:var(--text); box-shadow:var(--shadow-sm); }
+    .auth-fields { display:flex; flex-direction:column; gap:14px; margin-bottom:20px; }
+    .auth-error { background:var(--danger-bg); color:var(--danger); border-radius:var(--radius-sm); padding:10px 14px; font-size:13px; margin-bottom:14px; display:none; }
+    .auth-error.show { display:block; }
+    .user-info { position:relative; flex-shrink:0; }
+    .user-avatar { width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,var(--accent-dark),var(--accent)); color:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; cursor:pointer; border:none; flex-shrink:0; transition:transform .15s; }
+    .user-avatar:hover { transform:scale(1.05); }
+    .user-dropdown { position:absolute; right:0; top:42px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); padding:8px; min-width:200px; box-shadow:var(--shadow-lg); z-index:100; display:none; }
+    .user-dropdown.open { display:block; }
+    .user-dropdown-email { font-size:12px; color:var(--text-3); padding:6px 10px 10px; border-bottom:1px solid var(--border); margin-bottom:6px; word-break:break-all; }
+    .user-dropdown-btn { width:100%; text-align:left; background:none; border:none; padding:9px 10px; border-radius:6px; font-size:13.5px; font-weight:600; color:var(--text-2); cursor:pointer; font-family:inherit; transition:all .15s; }
+    .user-dropdown-btn:hover { background:var(--surface-2); }
+    .wine-box { margin-top:20px; }
+    .wine-card { background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md); padding:16px; margin-bottom:10px; border-left:3px solid #7C3AED; }
+    .wine-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; }
+    .wine-type { font-family:'Plus Jakarta Sans',sans-serif; font-weight:800; font-size:15px; }
+    .wine-price { font-size:12px; font-weight:700; color:#7C3AED; background:#F5F3FF; padding:2px 8px; border-radius:12px; }
+    [data-theme="dark"] .wine-price { background:#2E1F5E; color:#C4B5FD; }
+    .wine-grape { font-size:12.5px; color:#7C3AED; font-weight:600; margin-bottom:4px; }
+    [data-theme="dark"] .wine-grape { color:#C4B5FD; }
+    .wine-region { font-size:12px; color:var(--text-3); margin-bottom:8px; }
+    .wine-note { font-size:13px; color:var(--text-2); line-height:1.5; }
+    .wine-loading { display:flex; align-items:center; gap:8px; color:var(--text-3); font-size:14px; padding:12px 0; }
+    .sub-btn { background:var(--surface-2); border:1px solid var(--border); border-radius:6px; padding:3px 8px; font-size:11px; font-weight:700; color:var(--text-3); cursor:pointer; margin-left:auto; flex-shrink:0; transition:all .12s; }
+    .sub-btn:hover { background:var(--accent-light); color:var(--accent-dark); border-color:var(--accent); }
+    .alt-card { background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md); padding:14px; margin-bottom:8px; }
+    .alt-name { font-family:'Plus Jakarta Sans',sans-serif; font-weight:700; font-size:15px; margin-bottom:4px; }
+    .alt-amount { font-size:12px; font-weight:600; color:var(--accent); margin-bottom:6px; }
+    .alt-note { font-size:13px; color:var(--text-2); line-height:1.5; }
+    #toast { position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--text); color:var(--bg); padding:11px 24px; border-radius:999px; font-size:13.5px; font-weight:600; z-index:300; transition:transform .25s; pointer-events:none; white-space:nowrap; box-shadow:var(--shadow-lg); }
+    #toast.show { transform:translateX(-50%) translateY(0); }
+    #loading { position:fixed; inset:0; background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:500; gap:16px; }
+    .spinner { width:36px; height:36px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; }
+    .spinner-sm { width:16px; height:16px; border-width:2px; display:inline-block; vertical-align:middle; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+  </style>
+</head>
+<body>
+<div id="loading">
+  <div class="spinner"></div>
+  <p style="color:var(--green-dark);font-weight:600;font-size:15px;">Wird geladen&hellip;</p>
+</div>
+
+<!-- Auth screen -->
+<div id="auth-screen" style="display:none">
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="auth-logo-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15z"/></svg>
+        </div>
+        <span class="auth-logo-text">Mein Rezeptbuch</span>
+      </div>
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="auth-tab-login" onclick="switchAuthTab('login')">Anmelden</button>
+        <button class="auth-tab" id="auth-tab-register" onclick="switchAuthTab('register')">Registrieren</button>
+      </div>
+      <div class="auth-error" id="auth-error"></div>
+      <div class="auth-fields">
+        <div class="field"><label>E-Mail</label><input class="inp" id="auth-email" type="email" placeholder="deine@email.de" /></div>
+        <div class="field"><label>Passwort</label><input class="inp" id="auth-password" type="password" placeholder="Mindestens 6 Zeichen" /></div>
+        <div class="field" id="auth-name-field" style="display:none"><label>Name (optional)</label><input class="inp" id="auth-name" type="text" placeholder="Dein Name" /></div>
+      </div>
+      <button class="btn btn-primary" id="auth-submit-btn" onclick="submitAuth()" style="width:100%;justify-content:center">Anmelden</button>
+    </div>
+  </div>
+</div>
+
+<!-- Main app -->
+<div id="app" style="display:none">
+  <header>
+    <div class="header-inner">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15z"/></svg>
+        </div>
+        <span class="logo-text">Mein Rezeptbuch</span>
+      </div>
+      <nav>
+        <button class="nav-btn active" id="nav-recipes" onclick="switchTab('recipes')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15z"/></svg>
+          <span>Rezepte</span>
+        </button>
+        <button class="nav-btn" id="nav-week" onclick="switchTab('week')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <span>Wochenplan</span>
+        </button>
+        <button class="nav-btn" id="nav-shopping" onclick="switchTab('shopping')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"/></svg>
+          <span>Einkauf</span>
+        </button>
+      </nav>
+      <div class="user-info">
+        <button class="user-avatar" id="user-avatar-btn" onclick="toggleUserMenu()"></button>
+        <div class="user-dropdown" id="user-dropdown">
+          <div class="user-dropdown-email" id="user-email-display"></div>
+          <button class="user-dropdown-btn" style="color:var(--text);margin-bottom:2px" onclick="openStatsModal()">&#128202; Statistiken</button>
+          <button class="user-dropdown-btn" style="color:var(--text);margin-bottom:2px" onclick="openPwModal()">&#128274; Passwort &auml;ndern</button>
+          <div style="border-top:1px solid var(--border);margin:6px 0"></div>
+          <button class="user-dropdown-btn" id="theme-toggle-btn" onclick="toggleTheme()">&#127769; Dark Mode</button>
+          <div style="border-top:1px solid var(--border);margin:6px 0"></div>
+          <button class="user-dropdown-btn" style="color:var(--danger)" onclick="confirmLogout()">&#x2192; Abmelden</button>
+        </div>
+      </div>
+    </div>
+  </header>
+  <main id="content"></main>
+</div>
+
+<div id="toast"></div>
+
+<!-- Week/Day picker modal -->
+<div class="modal-overlay" id="modal" onclick="onModalBgClick(event)">
+  <div class="modal-box">
+    <div class="modal-hd">
+      <h3 id="modal-title">Rezept w&auml;hlen</h3>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <input class="modal-search" id="modal-search" placeholder="Suchen&hellip;" oninput="filterModal(this.value)" />
+    <div class="modal-list" id="modal-list"></div>
+  </div>
+</div>
+
+<!-- Bring modal -->
+<div class="modal-overlay" id="bring-modal" onclick="onBringModalBgClick(event)">
+  <div class="modal-box">
+    <div class="modal-hd">
+      <h3>&#127819; Nach Bring exportieren</h3>
+      <button class="btn btn-ghost btn-icon" onclick="closeBringModal()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="bring-info">&#128274; Dein Passwort wird <strong>nicht gespeichert</strong>. Nach dem ersten Login wird nur ein tempor&auml;rer Token im Browser abgelegt.</div>
+    <div class="bring-fields">
+      <div class="field"><label>Bring E-Mail</label><input class="inp" id="bring-email" type="email" placeholder="deine@email.de" /></div>
+      <div class="field"><label>Bring Passwort</label><input class="inp" id="bring-pw" type="password" /><span class="bring-saved" id="bring-saved-hint"></span></div>
+    </div>
+    <div class="bring-status" id="bring-status"></div>
+    <div class="bring-footer">
+      <button class="btn btn-secondary" onclick="closeBringModal()">Abbrechen</button>
+      <button class="btn btn-bring" id="bring-submit-btn" onclick="submitBring()">&#127819; Hinzuf&uuml;gen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Substitute modal -->
+<div class="modal-overlay" id="sub-modal" onclick="onSubModalBgClick(event)">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-hd">
+      <h3 id="sub-modal-title">&#129300; Alternativen</h3>
+      <button class="btn btn-ghost btn-icon" onclick="closeSubModal()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div id="sub-modal-content" style="display:flex;flex-direction:column;gap:10px;min-height:80px"></div>
+  </div>
+</div>
+
+<!-- Stats modal -->
+<div class="modal-overlay" id="stats-modal" onclick="onStatsModalBgClick(event)">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-hd">
+      <h3>&#128202; Statistiken</h3>
+      <button class="btn btn-ghost btn-icon" onclick="closeStatsModal()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div id="stats-content"></div>
+  </div>
+</div>
+
+<!-- Password modal -->
+<div class="modal-overlay" id="pw-modal" onclick="onPwModalBgClick(event)">
+  <div class="modal-box" style="max-width:400px">
+    <div class="modal-hd">
+      <h3>&#128274; Passwort &auml;ndern</h3>
+      <button class="btn btn-ghost btn-icon" onclick="closePwModal()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px">
+      <div class="field"><label>Neues Passwort</label><input class="inp" id="pw-new" type="password" placeholder="Mindestens 6 Zeichen" /></div>
+      <div class="field"><label>Passwort best&auml;tigen</label><input class="inp" id="pw-confirm" type="password" placeholder="Nochmal eingeben" /></div>
+    </div>
+    <div id="pw-status" style="font-size:13px;min-height:20px;margin-bottom:12px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closePwModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="submitPwChange()">&#128274; Passwort &auml;ndern</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import modal -->
+<div class="modal-overlay" id="import-modal" onclick="onImportModalBgClick(event)">
+  <div class="modal-box" style="max-width:520px">
+    <div class="modal-hd">
+      <h3>&#128203; Rezept importieren</h3>
+      <button class="btn btn-ghost btn-icon" onclick="closeImportModal()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:14px">
+      <button class="nutrition-tab active" id="import-tab-text" onclick="switchImportTab('text')">&#128464; Text</button>
+      <button class="nutrition-tab" id="import-tab-url" onclick="switchImportTab('url')">&#128279; Link</button>
+      <button class="nutrition-tab" id="import-tab-image" onclick="switchImportTab('image')">&#128247; Screenshot</button>
+    </div>
+    <div id="import-text-area">
+      <textarea id="import-text" class="inp" rows="8" style="resize:vertical;width:100%" placeholder="Rezepttext hier einf&uuml;gen&hellip;"></textarea>
+    </div>
+    <div id="import-url-area" style="display:none">
+      <div class="field" style="margin-bottom:10px">
+        <label>Rezept-URL oder YouTube-Link</label>
+        <input class="inp" id="import-url" type="url" placeholder="https://www.chefkoch.de/rezepte/... oder YouTube-Link" />
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        <span style="font-size:12px;color:var(--text-muted)">Unterst&uuml;tzt:</span>
+        <span style="font-size:12px;background:var(--green-faint);padding:2px 8px;border-radius:10px">&#127859; Rezept-Webseiten</span>
+        <span style="font-size:12px;background:#EDE9FE;padding:2px 8px;border-radius:10px">&#9654; YouTube</span>
+      </div>
+    </div>
+    <div id="import-image-area" style="display:none">
+      <div id="import-drop-zone" style="border:2px dashed var(--border);border-radius:12px;padding:32px;text-align:center;cursor:pointer" onclick="document.getElementById('import-file').click()" ondragover="event.preventDefault()" ondrop="onImportDrop(event)">
+        <div style="font-size:32px;margin-bottom:8px">&#128247;</div>
+        <p style="font-size:14px;color:var(--text-muted)">Screenshot hineinziehen oder klicken</p>
+      </div>
+      <input type="file" id="import-file" accept="image/*" style="display:none" onchange="onImportFileSelected(event)" />
+      <div id="import-preview" style="display:none;margin-top:12px;text-align:center">
+        <img id="import-preview-img" style="max-width:100%;max-height:200px;border-radius:8px" />
+        <button class="btn btn-ghost btn-sm" onclick="clearImportImage()" style="margin-top:8px">&#10005; Entfernen</button>
+      </div>
+    </div>
+    <div id="import-status" style="font-size:13px;color:var(--text-muted);text-align:center;padding:8px 0;min-height:24px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+      <button class="btn btn-secondary" onclick="closeImportModal()">Abbrechen</button>
+      <button class="btn btn-primary" id="import-submit-btn" onclick="submitImport()">&#10024; Importieren</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, doc, onSnapshot, addDoc, setDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, updatePassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+const fbApp = initializeApp({
+  apiKey: "AIzaSyBK5h3LdJ_1s5tByynBDOdeMGffoCyJO20",
+  authDomain: "rezeptbuch-253bc.firebaseapp.com",
+  projectId: "rezeptbuch-253bc",
+  storageBucket: "rezeptbuch-253bc.firebasestorage.app",
+  messagingSenderId: "324939912260",
+  appId: "1:324939912260:web:9e3daf8c3365d6305a5811"
+});
+const db = getFirestore(fbApp);
+const auth = getAuth(fbApp);
+
+// ── State ──────────────────────────────────────────────────────────────────
+var S = {
+  user: null,
+  recipes: [], weekPlan: {},
+  tab: "recipes", view: "list",
+  editing: null, viewing: null, search: "",
+  shopChecked: {},
+  activeFilters: [],
+  filterOpen: false,
+  wineList: [],
+  modalMode: "week", modalDay: null, modalRecipeId: null,
+  bringItems: [],
+  nutrition: null, nutritionTab: "portion", nutritionLoading: false,
+  scaledPortions: null,
+  weekNutritionCache: {},
+};
+var ADMIN_UID = "GT7Tl6KduQbMF3OYt0S7OaNNejr1";
+var DAYS = ["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
+var MEALS = ["Frühstück","Mittagessen","Abendessen"];
+var MEAL_ICONS = {"Frühstück":"☀️","Mittagessen":"🍽️","Abendessen":"🌙"};
+var unsubRecipes = null;
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+// ── Auth ───────────────────────────────────────────────────────────────────
+var authTab = "login";
+
+window.switchAuthTab = function(tab) {
+  authTab = tab;
+  document.getElementById("auth-tab-login").classList.toggle("active", tab==="login");
+  document.getElementById("auth-tab-register").classList.toggle("active", tab==="register");
+  document.getElementById("auth-name-field").style.display = tab==="register" ? "" : "none";
+  document.getElementById("auth-submit-btn").textContent = tab==="login" ? "Anmelden" : "Registrieren";
+  document.getElementById("auth-error").classList.remove("show");
+};
+
+window.submitAuth = async function() {
+  var email = document.getElementById("auth-email").value.trim();
+  var password = document.getElementById("auth-password").value;
+  var name = document.getElementById("auth-name").value.trim();
+  var errEl = document.getElementById("auth-error");
+  var btn = document.getElementById("auth-submit-btn");
+  errEl.classList.remove("show");
+  if (!email || !password) { errEl.textContent = "Bitte E-Mail und Passwort eingeben."; errEl.classList.add("show"); return; }
+  btn.disabled = true; btn.textContent = "Bitte warten\u2026";
+  try {
+    if (authTab === "register") {
+      var cred = await createUserWithEmailAndPassword(auth, email, password);
+      if (name) await updateProfile(cred.user, { displayName: name });
+    } else {
+      await signInWithEmailAndPassword(auth, email, password);
+    }
+  } catch(e) {
+    var msg = e.code === "auth/user-not-found" ? "Kein Konto mit dieser E-Mail gefunden."
+      : e.code === "auth/wrong-password" ? "Falsches Passwort."
+      : e.code === "auth/email-already-in-use" ? "Diese E-Mail wird bereits verwendet."
+      : e.code === "auth/weak-password" ? "Passwort muss mindestens 6 Zeichen haben."
+      : e.code === "auth/invalid-email" ? "Ung\u00fcltige E-Mail-Adresse."
+      : e.message;
+    errEl.textContent = msg; errEl.classList.add("show");
+    btn.disabled = false; btn.textContent = authTab==="login" ? "Anmelden" : "Registrieren";
+  }
+};
+
+window.toggleUserMenu = function() {
+  var dd = document.getElementById("user-dropdown");
+  if (dd) dd.classList.toggle("open");
+};
+// Close dropdown when clicking outside
+document.addEventListener("click", function(e) {
+  var dd = document.getElementById("user-dropdown");
+  var btn = document.getElementById("user-avatar-btn");
+  if (dd && btn && !dd.contains(e.target) && e.target !== btn) {
+    dd.classList.remove("open");
+  }
+});
+window.confirmLogout = function() {
+  if (confirm("Wirklich abmelden?")) window.doLogout();
+};
+window.toggleUserMenu = function() {
+  var dd = document.getElementById("user-dropdown");
+  if (dd) dd.classList.toggle("open");
+};
+// Close dropdown when clicking outside
+document.addEventListener("click", function(e) {
+  var dd = document.getElementById("user-dropdown");
+  var btn = document.getElementById("user-avatar-btn");
+  if (dd && btn && !dd.contains(e.target) && e.target !== btn) {
+    dd.classList.remove("open");
+  }
+});
+window.confirmLogout = function() {
+  if (confirm("Wirklich abmelden?")) window.doLogout();
+};
+window.doLogout = async function() {
+  if (unsubRecipes) { unsubRecipes(); unsubRecipes = null; }
+  await signOut(auth);
+};
+
+// ── Auth state observer ────────────────────────────────────────────────────
+onAuthStateChanged(auth, function(user) {
+  document.getElementById("loading").style.display = "none";
+  if (user) {
+    S.user = user;
+    document.getElementById("auth-screen").style.display = "none";
+    document.getElementById("app").style.display = "flex";
+    var displayName = user.displayName || user.email;
+    document.getElementById("user-email-display").textContent = displayName;
+    var avatarBtn = document.getElementById("user-avatar-btn");
+    if (avatarBtn) avatarBtn.textContent = (user.displayName ? user.displayName[0] : user.email[0]).toUpperCase();
+    initApp();
+  } else {
+    S.user = null;
+    if (unsubRecipes) { unsubRecipes(); unsubRecipes = null; }
+    document.getElementById("app").style.display = "none";
+    document.getElementById("auth-screen").style.display = "block";
+  }
+});
+
+// ── Init after login ───────────────────────────────────────────────────────
+function initApp() {
+  // Fix nav highlight based on current tab
+  ["recipes","week","shopping"].forEach(function(t) {
+    var el = document.getElementById("nav-"+t);
+    if (el) el.classList.toggle("active", t===S.tab);
+  });
+  // Load recipes (shared)
+  if (unsubRecipes) unsubRecipes();
+  unsubRecipes = onSnapshot(collection(db, "recipes"), function(snap) {
+    S.recipes = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+    render();
+  });
+  // Load user's own weekplan
+  getDoc(doc(db, "users", S.user.uid, "weekplan", "current")).then(function(d) {
+    if (d.exists()) S.weekPlan = d.data();
+    else S.weekPlan = {};
+    render();
+  });
+  getDoc(doc(db, "users", S.user.uid, "winelist", "current")).then(function(d) {
+    if (d.exists() && d.data().wines) S.wineList = d.data().wines;
+    else S.wineList = [];
+    renderOnly();
+  });
+  getDoc(doc(db, "users", S.user.uid, "shopchecked", "current")).then(function(d) {
+    if (d.exists() && d.data().checked) S.shopChecked = d.data().checked;
+    else S.shopChecked = {};
+    renderOnly();
+  });
+}
+
+// ── Firebase ───────────────────────────────────────────────────────────────
+async function fbSaveRecipe(r) {
+  var data = Object.assign({}, r);
+  var id = data.id; delete data.id;
+  // Bei fremden Rezepten (Admin-Bearbeitung) den ursprünglichen Ersteller behalten
+  if (!data.createdBy) {
+    data.createdBy = S.user.uid;
+    data.createdByName = S.user.displayName || S.user.email;
+  }
+  // Firestore akzeptiert kein "undefined" - alle solchen Felder entfernen
+  Object.keys(data).forEach(function(key) {
+    if (data[key] === undefined) delete data[key];
+  });
+  if (id) { await setDoc(doc(db, "recipes", id), data); }
+  else { await addDoc(collection(db, "recipes"), data); }
+}
+
+async function fbDeleteRecipe(id) {
+  await deleteDoc(doc(db, "recipes", id));
+  var changed = false;
+  DAYS.forEach(function(day) {
+    if (!S.weekPlan[day]) return;
+    var entry = S.weekPlan[day];
+    var r = entry.recipe || entry;
+    if (r.id === id) { delete S.weekPlan[day]; changed = true; }
+  });
+  if (changed) await fbSaveWeek();
+}
+
+async function fbSaveWeek() {
+  await setDoc(doc(db, "users", S.user.uid, "weekplan", "current"), S.weekPlan);
+}
+async function fbSaveShopChecked() {
+  try { await setDoc(doc(db, "users", S.user.uid, "shopchecked", "current"), { checked: S.shopChecked }); } catch(e) {}
+}
+async function fbSaveWineList() {
+  try {
+    await setDoc(doc(db, "users", S.user.uid, "winelist", "current"), { wines: S.wineList });
+  } catch(e) { console.error("Wine save error:", e); }
+}
+
+function isOwner(recipe) {
+  if (!recipe || !S.user) return false;
+  if (S.user.uid === ADMIN_UID) return true; // Admin kann alles bearbeiten
+  if (!recipe.createdBy) return true; // Legacy recipes without owner
+  return recipe.createdBy === S.user.uid;
+}
+
+// ── Icons ──────────────────────────────────────────────────────────────────
+function svg(path, size) {
+  size = size || 16;
+  return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="'+path+'"/></svg>';
+}
+var I = {
+  plus: "M12 5v14M5 12h14", trash: "M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6",
+  edit: "M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z",
+  x: "M18 6L6 18M6 6l12 12", check: "M20 6L9 17l-5-5",
+  copy: "M8 4H6a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2v-2M8 4h8a2 2 0 012 2v8M8 4a2 2 0 012-2h4a2 2 0 012 2",
+  dl: "M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3",
+  back: "M19 12H5M12 5l-7 7 7 7",
+  users: "M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75",
+  clock: "M12 22c5.52 0 10-4.48 10-10S17.52 2 12 2 2 6.48 2 12s4.48 10 10 10zM12 6v6l4 2",
+  cal: "M3 4h18M3 8h18M3 12h18M3 16h18M3 20h10M16 3v18",
+  lock: "M19 11H5a2 2 0 00-2 2v7a2 2 0 002 2h14a2 2 0 002-2v-7a2 2 0 00-2-2zM7 11V7a5 5 0 0110 0v4",
+};
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function esc(s) { return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function toast(msg) { var t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); setTimeout(function(){t.classList.remove("show");},2400); }
+function dlTxt(name, txt) { var b=new Blob([txt],{type:"text/plain;charset=utf-8"}); var u=URL.createObjectURL(b); var a=document.createElement("a"); a.href=u; a.download=name; a.click(); URL.revokeObjectURL(u); }
+function fmtIng(i) { return [i.amount, i.unit, i.name].filter(Boolean).join(" "); }
+function fmtNum(n) { return n % 1 === 0 ? String(n) : n.toFixed(1).replace(/\.0$/,""); }
+
+// ── Unit dropdown ──────────────────────────────────────────────────────────
+var UNITS = ["","g","kg","ml","l","EL","TL","Tasse","Stk","Scheibe","Prise","Zehe"];
+var UNIT_LABELS = {"":"–","g":"g","kg":"kg","ml":"ml","l":"l","EL":"EL","TL":"TL","Tasse":"Tasse","Stk":"Stk","Scheibe":"Scheibe","Prise":"Prise","Zehe":"Zehe"};
+function buildUnitSelect(selected) {
+  var html = '<select class="inp inp-sm unit-sel" data-f="unit">';
+  UNITS.forEach(function(u) { html += '<option value="'+u+'"'+(u===(selected||"")?" selected":"")+'>'+UNIT_LABELS[u]+'</option>'; });
+  return html + '</select>';
+}
+
+// ── Week plan helpers ──────────────────────────────────────────────────────
+function getWeekEntries() {
+  var result = [];
+  DAYS.forEach(function(day) {
+    MEALS.forEach(function(meal) {
+      var key = day + "__" + meal;
+      var entry = S.weekPlan[key];
+      if (!entry) return;
+      if (entry && entry.recipe) result.push(Object.assign({day:day,meal:meal}, entry));
+      else result.push({day:day,meal:meal,recipe:entry,portions:parseInt((entry||{}).servings)||1});
+    });
+  });
+  return result;
+}
+
+function mergeWeekIngredients() {
+  var map = {};
+  getWeekEntries().forEach(function(entry) {
+    var r = entry.recipe;
+    var scale = entry.portions / (parseInt(r.servings)||1);
+    (r.ingredients||[]).filter(function(i){return i.name;}).forEach(function(ing){
+      var key = ing.name.toLowerCase()+"__"+(ing.unit||"");
+      var scaled = (parseFloat(ing.amount)||0) * scale;
+      var displayAmt = scaled ? fmtNum(scaled) : "";
+      if (map[key]) {
+        var total = (parseFloat(map[key].amount)||0) + scaled;
+        map[key] = Object.assign({}, map[key], { amount: fmtNum(total) });
+      } else {
+        map[key] = Object.assign({}, ing, { amount: displayAmt });
+      }
+    });
+  });
+  return Object.values(map);
+}
+
+function weekExportText() {
+  var ings = mergeWeekIngredients();
+  var lines = ["Wocheneinkaufsliste",""];
+  DAYS.forEach(function(day){
+    var dayLines=[];
+    MEALS.forEach(function(meal){
+      var key=day+"__"+meal;
+      if(!S.weekPlan[key]) return;
+      var entry=S.weekPlan[key];
+      var r=entry.recipe||entry;
+      var p=entry.portions||parseInt((r||{}).servings)||1;
+      dayLines.push("  "+MEAL_ICONS[meal]+" "+meal+": "+r.name+" ("+p+"x)");
+    });
+    if(dayLines.length>0){lines.push(day+":");dayLines.forEach(function(l){lines.push(l);});}
+  });
+  lines.push("","---","Zutaten:","");
+  ings.forEach(function(i){lines.push("- "+fmtIng(i));});
+  return lines.join("\n");
+}
+
+function shopExportText() {
+  var entries = getWeekEntries();
+  var names = entries.map(function(e){return e.recipe.name+" ("+e.portions+"x)";}).join(", ");
+  var ings = mergeWeekIngredients();
+  return ["Einkaufsliste für diese Woche","","Gerichte: "+names,""].concat(ings.map(function(i){return "- "+fmtIng(i);})).join("\n");
+}
+
+// ── Nutrition ──────────────────────────────────────────────────────────────
+function loadNutritionScaled(recipe, portions) {
+  // Nährwerte sind bereits im Rezept gespeichert (einmalig per KI berechnet beim Speichern)
+  if (!recipe.nutrition || !recipe.nutrition.total) {
+    S.nutrition = { error: "Keine Nährwerte gespeichert. Bitte Rezept einmal speichern um sie zu berechnen." };
+    renderNutritionBox();
+    return;
+  }
+
+  var baseServings = recipe.nutrition.baseServings || parseInt(recipe.servings) || 1;
+  var total = recipe.nutrition.total;
+  var scale = portions / baseServings;
+
+  var scaledTotal = {
+    kcal: Math.round(total.kcal * scale),
+    protein: Math.round(total.protein * scale * 10) / 10,
+    carbs: Math.round(total.carbs * scale * 10) / 10,
+    fat: Math.round(total.fat * scale * 10) / 10,
+  };
+
+  S.nutrition = {
+    total: scaledTotal,
+    perServing: {
+      kcal: Math.round(scaledTotal.kcal / portions),
+      protein: Math.round((scaledTotal.protein / portions) * 10) / 10,
+      carbs: Math.round((scaledTotal.carbs / portions) * 10) / 10,
+      fat: Math.round((scaledTotal.fat / portions) * 10) / 10,
+    },
+    servings: portions,
+  };
+  renderNutritionBox();
+}
+
+
+
+function renderNutritionBox() { var el=document.getElementById("nutrition-box"); if(el) el.innerHTML=nutritionBoxHtml(); }
+function nutritionBoxHtml() {
+  if (S.nutritionLoading) return '<div class="nutrition-loading"><div class="spinner spinner-sm"></div> N&auml;hrwerte werden berechnet&hellip;</div>';
+  if (!S.nutrition) return "";
+  if (S.nutrition.error) {
+    var ownerView = S.viewing && isOwner(S.viewing);
+    return '<p style="font-size:13px;color:var(--text-muted);font-style:italic">' + esc(S.nutrition.error) + '</p>'
+      + (ownerView ? '<button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="recalcNutritionNow()">&#128202; Jetzt berechnen</button>' : '');
+  }
+  var n = S.nutritionTab==="portion" ? S.nutrition.perServing : S.nutrition.total;
+  return '<p class="nutrition-title">N&auml;hrwerte</p>'
+    +'<div class="nutrition-tabs">'
+    +'<button class="nutrition-tab'+(S.nutritionTab==="portion"?" active":"")+'" onclick="setNutritionTab(\'portion\')">Pro Portion</button>'
+    +'<button class="nutrition-tab'+(S.nutritionTab==="total"?" active":"")+'" onclick="setNutritionTab(\'total\')">Gesamt</button>'
+    +'</div>'
+    +'<div class="nutrition-grid">'
+    +'<div class="nutrition-stat"><div class="nutrition-stat-val">'+n.kcal+'</div><div class="nutrition-stat-unit">kcal</div><div class="nutrition-stat-label">Kalorien</div></div>'
+    +'<div class="nutrition-stat"><div class="nutrition-stat-val">'+n.protein+'</div><div class="nutrition-stat-unit">g</div><div class="nutrition-stat-label">Eiwei&szlig;</div></div>'
+    +'<div class="nutrition-stat"><div class="nutrition-stat-val">'+n.carbs+'</div><div class="nutrition-stat-unit">g</div><div class="nutrition-stat-label">Kohlenhydrate</div></div>'
+    +'<div class="nutrition-stat"><div class="nutrition-stat-val">'+n.fat+'</div><div class="nutrition-stat-unit">g</div><div class="nutrition-stat-label">Fett</div></div>'
+    +'</div>'
+    +'<p class="nutrition-hint">&#9432; Richtwerte &bull; '+(S.nutritionTab==="portion"?"pro Portion":"gesamt ("+S.nutrition.servings+" Portionen)")+'</p>';
+}
+window.setNutritionTab = function(tab) { S.nutritionTab=tab; renderNutritionBox(); };
+
+// ── Bring ──────────────────────────────────────────────────────────────────
+window.openBringModal = function(items) {
+  S.bringItems = items||[];
+  var savedToken=localStorage.getItem("bring_token");
+  var savedUuid=localStorage.getItem("bring_uuid");
+  if (savedToken && savedUuid) { exportToBring(null,null,savedToken,savedUuid); return; }
+  var savedEmail=localStorage.getItem("bring_email");
+  document.getElementById("bring-email").value=savedEmail||"";
+  document.getElementById("bring-pw").value="";
+  document.getElementById("bring-saved-hint").textContent=savedEmail?"E-Mail gespeichert \u2013 bitte Passwort eingeben.":"";
+  document.getElementById("bring-status").textContent="";
+  document.getElementById("bring-status").className="bring-status";
+  document.getElementById("bring-modal").classList.add("open");
+};
+window.closeBringModal=function(){document.getElementById("bring-modal").classList.remove("open");};
+window.onBringModalBgClick=function(e){if(e.target===document.getElementById("bring-modal"))window.closeBringModal();};
+
+async function exportToBring(email,password,token,uuid) {
+  var statusEl=document.getElementById("bring-status");
+  var btn=document.getElementById("bring-submit-btn");
+  if(btn) btn.disabled=true;
+  if(statusEl){statusEl.textContent="Exportiere\u2026";statusEl.className="bring-status";}
+  try {
+    var body={items:S.bringItems};
+    if(token&&uuid){body.token=token;body.uuid=uuid;}
+    if(email) body.email=email;
+    if(password) body.password=password;
+    var res=await fetch("/api/bring",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    var data=await res.json();
+    if(res.status===401&&data.error==="token_expired"){
+      localStorage.removeItem("bring_token");localStorage.removeItem("bring_uuid");
+      if(btn) btn.disabled=false;
+      document.getElementById("bring-email").value=localStorage.getItem("bring_email")||"";
+      document.getElementById("bring-pw").value="";
+      document.getElementById("bring-saved-hint").textContent="Sitzung abgelaufen \u2013 bitte erneut anmelden.";
+      document.getElementById("bring-modal").classList.add("open");
+      return;
+    }
+    if(!res.ok){if(statusEl){statusEl.textContent=data.error||"Fehler.";statusEl.className="bring-status err";}if(btn)btn.disabled=false;return;}
+    if(data.token){localStorage.setItem("bring_token",data.token);localStorage.setItem("bring_uuid",data.uuid);}
+    if(email) localStorage.setItem("bring_email",email);
+    localStorage.removeItem("bring_pw");
+    if(btn) btn.disabled=false;
+    toast("\u2713 "+data.count+" Zutaten in Bring!");
+    window.closeBringModal();
+  } catch(e){if(statusEl){statusEl.textContent="Fehler: "+e.message;statusEl.className="bring-status err";}if(btn)btn.disabled=false;}
+}
+
+window.submitBring=async function(){
+  var email=document.getElementById("bring-email").value.trim();
+  var pw=document.getElementById("bring-pw").value;
+  if(!email||!pw){var s=document.getElementById("bring-status");s.textContent="Bitte E-Mail und Passwort eingeben.";s.className="bring-status err";return;}
+  await exportToBring(email,pw,null,null);
+};
+
+// ── Import ─────────────────────────────────────────────────────────────────
+var importImageBase64=null, importImageType=null, importTab="text";
+window.openImportModal=function(){
+  importImageBase64=null;importImageType=null;
+  document.getElementById("import-text").value="";
+  if(document.getElementById("import-url")) document.getElementById("import-url").value="";
+  document.getElementById("import-status").textContent="";
+  document.getElementById("import-preview").style.display="none";
+  document.getElementById("import-drop-zone").style.display="";
+  switchImportTab("text");
+  document.getElementById("import-modal").classList.add("open");
+};
+window.closeImportModal=function(){document.getElementById("import-modal").classList.remove("open");};
+window.onImportModalBgClick=function(e){if(e.target===document.getElementById("import-modal"))window.closeImportModal();};
+window.switchImportTab=function(tab){
+  importTab=tab;
+  document.getElementById("import-text-area").style.display=tab==="text"?"":"none";
+  document.getElementById("import-url-area").style.display=tab==="url"?"":"none";
+  document.getElementById("import-image-area").style.display=tab==="image"?"":"none";
+  document.getElementById("import-tab-text").classList.toggle("active",tab==="text");
+  var urlTab=document.getElementById("import-tab-url"); if(urlTab) urlTab.classList.toggle("active",tab==="url");
+  document.getElementById("import-tab-image").classList.toggle("active",tab==="image");
+};
+window.onImportDrop=function(e){e.preventDefault();var f=e.dataTransfer.files[0];if(f)loadImportImage(f);};
+window.onImportFileSelected=function(e){var f=e.target.files[0];if(f)loadImportImage(f);};
+function loadImportImage(file){
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var url=e.target.result;
+    importImageBase64=url.split(",")[1];importImageType=file.type;
+    document.getElementById("import-preview-img").src=url;
+    document.getElementById("import-preview").style.display="";
+    document.getElementById("import-drop-zone").style.display="none";
+  };
+  reader.readAsDataURL(file);
+}
+window.clearImportImage=function(){
+  importImageBase64=null;importImageType=null;
+  document.getElementById("import-preview").style.display="none";
+  document.getElementById("import-drop-zone").style.display="";
+  document.getElementById("import-file").value="";
+};
+window.submitImport=async function(){
+  var statusEl=document.getElementById("import-status");
+  var btn=document.getElementById("import-submit-btn");
+  var text=document.getElementById("import-text").value.trim();
+  var urlEl=document.getElementById("import-url");
+  var url=urlEl?urlEl.value.trim():"";
+  if(importTab==="text"&&!text){statusEl.textContent="Bitte Rezepttext einf\u00fcgen.";statusEl.style.color="var(--danger)";return;}
+  if(importTab==="url"&&!url){statusEl.textContent="Bitte einen Link eingeben.";statusEl.style.color="var(--danger)";return;}
+  if(importTab==="image"&&!importImageBase64){statusEl.textContent="Bitte ein Bild ausw\u00e4hlen.";statusEl.style.color="var(--danger)";return;}
+  btn.disabled=true;
+  statusEl.textContent=importTab==="url"?"Seite wird geladen\u2026":"Rezept wird analysiert\u2026";
+  statusEl.style.color="var(--text-muted)";
+  try {
+    var body={};
+    if(importTab==="image"){body.imageBase64=importImageBase64;body.imageType=importImageType;}
+    else if(importTab==="url"){body.url=url;}
+    else{body.text=text;}
+    var res=await fetch("/api/import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    var data=await res.json();
+    if(!res.ok){statusEl.textContent=data.error||"Fehler.";statusEl.style.color="var(--danger)";btn.disabled=false;return;}
+    S.editing=data.recipe;S.view="form";
+    window.closeImportModal();btn.disabled=false;
+    toast("Rezept importiert \u2013 bitte pr\u00fcfen und speichern!");
+    render();
+  } catch(e){statusEl.textContent="Fehler: "+e.message;statusEl.style.color="var(--danger)";btn.disabled=false;}
+};
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+window.switchTab=function(tab){
+  S.tab=tab;S.view="list";S.editing=null;S.viewing=null;S.search="";S.nutrition=null;
+  ["recipes","week","shopping"].forEach(function(t){document.getElementById("nav-"+t).classList.toggle("active",t===tab);});
+  render();
+};
+
+// ── Auto-categorize ────────────────────────────────────────────────────────
+var TAG_COLORS = {
+  "Hauptgericht":"tag-meal","Beilage":"tag-meal","Frühstück":"tag-meal","Snack":"tag-meal","Dessert":"tag-meal","Getränk":"tag-meal",
+  "Fleisch":"tag-ingredient","Geflügel":"tag-ingredient","Fisch":"tag-ingredient","Meeresfrüchte":"tag-ingredient",
+  "Vegetarisch":"tag-ingredient","Vegan":"tag-ingredient","Eier":"tag-ingredient","Käse":"tag-ingredient",
+  "Italienisch":"tag-cuisine","Asiatisch":"tag-cuisine","Deutsch":"tag-cuisine","Mexikanisch":"tag-cuisine",
+  "Mediterran":"tag-cuisine","Indisch":"tag-cuisine","Amerikanisch":"tag-cuisine","Französisch":"tag-cuisine",
+  "Pasta/Nudeln":"tag-type","Reis/Getreide":"tag-type","Suppe/Eintopf":"tag-type","Salat":"tag-type",
+  "Sandwich/Wrap":"tag-type","Pizza":"tag-type","Curry":"tag-type","Pfannengericht":"tag-type",
+  "Backen":"tag-type","Rohkost":"tag-type","Bowl":"tag-type",
+  "Schnell":"tag-effort","Mittel":"tag-effort","Aufwendig":"tag-effort"
+};
+
+function tagClass(tag) { return "tag " + (TAG_COLORS[tag] || "tag-meal"); }
+
+async function autoCategorizRecipe(recipe) {
+  try {
+    var res = await fetch("/api/categorize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: recipe.name, description: recipe.description, ingredients: recipe.ingredients }),
+    });
+    var data = await res.json();
+    return data.tags || [];
+  } catch(e) { return []; }
+}
+
+function tagHtml(tag, clickable, active) {
+  var cls = tagClass(tag) + (clickable ? " tag-filter" + (active ? " active" : "") : "");
+  var dataAttr = clickable ? ' data-tag="' + esc(tag) + '" onclick="handleTagClick(this)"' : '';
+  return '<span class="' + cls + '"' + dataAttr + '>' + esc(tag) + '</span>';
+}
+
+window.handleTagClick = function(el) {
+  var tag = el.getAttribute('data-tag');
+  if (tag) window.toggleFilter(tag);
+};
+
+window.toggleFilter = function(tag) {
+  var idx = S.activeFilters.indexOf(tag);
+  if (idx >= 0) S.activeFilters.splice(idx, 1);
+  else S.activeFilters.push(tag);
+  render();
+};
+
+window.clearFilters = function() { S.activeFilters = []; render(); };
+window.toggleFilterPanel = function() { S.filterOpen = !S.filterOpen; render(); };
+
+function filterPanel() {
+  // Collect all tags from all recipes
+  var allTags = {};
+  S.recipes.forEach(function(r) {
+    (r.tags || []).forEach(function(t) { allTags[t] = (allTags[t]||0)+1; });
+  });
+
+  var groups = {
+    "Mahlzeit": ["Hauptgericht","Beilage","Frühstück","Snack","Dessert","Getränk"],
+    "Zutaten": ["Fleisch","Geflügel","Fisch","Meeresfrüchte","Vegetarisch","Vegan","Eier","Käse"],
+    "Küche": ["Italienisch","Asiatisch","Deutsch","Mexikanisch","Mediterran","Indisch","Amerikanisch","Französisch"],
+    "Art": ["Pasta/Nudeln","Reis/Getreide","Suppe/Eintopf","Salat","Sandwich/Wrap","Pizza","Curry","Pfannengericht","Backen","Bowl"],
+    "Aufwand": ["Schnell","Mittel","Aufwendig"]
+  };
+
+  var html = '<div class="filter-panel">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
+  html += '<span style="font-size:13px;font-weight:700;color:var(--text-sub)">Filter</span>';
+  if (S.activeFilters.length > 0) {
+    html += '<button class="btn btn-ghost btn-sm" onclick="clearFilters()">&#10005; Alle löschen ('+S.activeFilters.length+')</button>';
+  }
+  html += '</div>';
+
+  Object.keys(groups).forEach(function(groupName) {
+    var tags = groups[groupName].filter(function(t) { return allTags[t]; });
+    if (tags.length === 0) return;
+    html += '<div class="filter-section">';
+    html += '<div class="filter-section-label">'+groupName+'</div>';
+    html += '<div class="filter-tags">';
+    tags.forEach(function(tag) {
+      var active = S.activeFilters.indexOf(tag) >= 0;
+      html += tagHtml(tag, true, active) + ' <span style="font-size:10px;color:var(--text-muted)">'+allTags[tag]+'</span> ';
+    });
+    html += '</div></div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+// ── Stats modal ────────────────────────────────────────────────────────────
+window.openStatsModal = function() {
+  document.getElementById("user-dropdown").classList.remove("open");
+  var modal = document.getElementById("stats-modal");
+  var cnt = document.getElementById("stats-content");
+  modal.classList.add("open");
+
+  // Calculate stats
+  var totalRecipes = S.recipes.length;
+  var myRecipes = S.recipes.filter(function(r){ return !r.createdBy || r.createdBy === (S.user&&S.user.uid); }).length;
+  var othersRecipes = totalRecipes - myRecipes;
+
+  // Recipes planned this week
+  var weekEntries = getWeekEntries();
+  var weekRecipeNames = weekEntries.map(function(e){ return e.recipe.name; });
+  var uniqueWeekRecipes = weekEntries.filter(function(e,i,a){
+    return a.findIndex(function(x){ return x.recipe.id===e.recipe.id; })===i;
+  }).length;
+
+  // Total ingredients across all recipes
+  var totalIngs = S.recipes.reduce(function(sum,r){ return sum+(r.ingredients||[]).filter(function(i){return i.name;}).length; },0);
+
+  // Average prep time
+  var timesWithMinutes = S.recipes.filter(function(r){ return r.prepTime; }).map(function(r){
+    var match = r.prepTime.match(/(\d+)/);
+    return match ? parseInt(match[1]) : null;
+  }).filter(Boolean);
+  var avgTime = timesWithMinutes.length ? Math.round(timesWithMinutes.reduce(function(a,b){return a+b;},0)/timesWithMinutes.length) : null;
+
+  // Fastest and longest recipe
+  var withTimes = S.recipes.filter(function(r){
+    return r.prepTime && r.prepTime.match(/(\d+)/);
+  }).map(function(r){
+    return { name: r.name, mins: parseInt(r.prepTime.match(/(\d+)/)[1]) };
+  });
+  withTimes.sort(function(a,b){return a.mins-b.mins;});
+  var fastest = withTimes[0];
+  var longest = withTimes[withTimes.length-1];
+
+  function statCard(icon, label, value, sub) {
+    return '<div style="background:var(--green-faint);border-radius:12px;padding:14px 16px;border:1px solid var(--border)">'
+      +'<div style="font-size:20px;margin-bottom:4px">'+icon+'</div>'
+      +'<div style="font-size:22px;font-weight:800;color:var(--green-darkest)">'+value+'</div>'
+      +'<div style="font-size:13px;font-weight:600;color:var(--text-sub)">'+label+'</div>'
+      +(sub?'<div style="font-size:11px;color:var(--text-muted);margin-top:2px">'+sub+'</div>':"")
+      +'</div>';
+  }
+
+  var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">'
+    + statCard("&#128214;","Rezepte gesamt",totalRecipes,"davon "+myRecipes+" von dir")
+    + statCard("&#128203;","Zutaten gesamt",totalIngs,"&Oslash; "+(totalRecipes?Math.round(totalIngs/totalRecipes):0)+" pro Rezept")
+    + statCard("&#128197;","Diese Woche geplant",weekEntries.length,uniqueWeekRecipes+" verschiedene Gerichte")
+    + statCard("&#9201;","&Oslash; Zubereitungszeit",avgTime?avgTime+" min":"–","")
+    +'</div>';
+
+  if (fastest && longest && fastest.name !== longest.name) {
+    html += '<div style="background:var(--surface);border-radius:12px;padding:14px 16px;border:1.5px solid var(--border);margin-bottom:10px">'
+      +'<p style="font-size:11px;font-weight:800;color:var(--green-darkest);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Schnellstes &amp; l&auml;ngstes Rezept</p>'
+      +'<div style="display:flex;justify-content:space-between;gap:12px">'
+      +'<div><div style="font-size:18px">&#9889;</div><div style="font-weight:700;font-size:14px">'+esc(fastest.name)+'</div><div style="font-size:12px;color:var(--text-muted)">'+fastest.mins+' min</div></div>'
+      +'<div style="text-align:right"><div style="font-size:18px">&#9203;</div><div style="font-weight:700;font-size:14px">'+esc(longest.name)+'</div><div style="font-size:12px;color:var(--text-muted)">'+longest.mins+' min</div></div>'
+      +'</div></div>';
+  }
+
+  if (othersRecipes > 0) {
+    html += '<div style="font-size:13px;color:var(--text-muted);text-align:center;padding:6px 0">'
+      +'&#128101; '+othersRecipes+' Rezept'+(othersRecipes>1?"e":"")+" von anderen Nutzern in der Datenbank"
+      +'</div>';
+  }
+
+  cnt.innerHTML = html;
+};
+window.closeStatsModal = function() { document.getElementById("stats-modal").classList.remove("open"); };
+window.onStatsModalBgClick = function(e) { if(e.target===document.getElementById("stats-modal")) window.closeStatsModal(); };
+
+// ── Password modal ──────────────────────────────────────────────────────────
+window.openPwModal = function() {
+  document.getElementById("user-dropdown").classList.remove("open");
+  document.getElementById("pw-new").value = "";
+  document.getElementById("pw-confirm").value = "";
+  document.getElementById("pw-status").textContent = "";
+  document.getElementById("pw-modal").classList.add("open");
+};
+window.closePwModal = function() { document.getElementById("pw-modal").classList.remove("open"); };
+window.onPwModalBgClick = function(e) { if(e.target===document.getElementById("pw-modal")) window.closePwModal(); };
+
+window.submitPwChange = async function() {
+  var newPw = document.getElementById("pw-new").value;
+  var confirmPw = document.getElementById("pw-confirm").value;
+  var statusEl = document.getElementById("pw-status");
+
+  if (!newPw || newPw.length < 6) {
+    statusEl.textContent = "Passwort muss mindestens 6 Zeichen haben.";
+    statusEl.style.color = "var(--danger)";
+    return;
+  }
+  if (newPw !== confirmPw) {
+    statusEl.textContent = "Passwörter stimmen nicht überein.";
+    statusEl.style.color = "var(--danger)";
+    return;
+  }
+
+  statusEl.textContent = "Wird gespeichert…";
+  statusEl.style.color = "var(--text-muted)";
+
+  try {
+    await updatePassword(auth.currentUser, newPw);
+    statusEl.textContent = "Passwort erfolgreich geändert! ✓";
+    statusEl.style.color = "var(--green-dark)";
+    setTimeout(function(){ window.closePwModal(); }, 1500);
+  } catch(e) {
+    var msg = e.code === "auth/requires-recent-login"
+      ? "Bitte melde dich erneut an um das Passwort zu ändern."
+      : e.message;
+    statusEl.textContent = msg;
+    statusEl.style.color = "var(--danger)";
+  }
+};
+
+// ── Substitute modal ──────────────────────────────────────────────────────
+var _subData = [];
+
+window.triggerSub = function(btn) {
+  var idx = parseInt(btn.getAttribute("data-idx"));
+  var d = _subData[idx];
+  if (d) window.openSubModal(d.ingredient, d.amount, d.unit, d.recipeName, d.others);
+};
+
+window.openSubModal = async function(ingredient, amount, unit, recipeName, otherIngs) {
+  var modal = document.getElementById("sub-modal");
+  var cnt = document.getElementById("sub-modal-content");
+  var title = document.getElementById("sub-modal-title");
+  if (!modal || !cnt) return;
+  title.textContent = "Alternativen für " + ingredient;
+  cnt.innerHTML = '<div style="display:flex;align-items:center;gap:8px;color:var(--text-muted);font-size:14px"><div class="spinner spinner-sm"></div> Alternativen werden gesucht…</div>';
+  modal.classList.add("open");
+  try {
+    var res = await fetch("/api/substitute", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ingredient: ingredient, amount: amount, unit: unit, recipeName: recipeName, recipeIngredients: otherIngs }),
+    });
+    var data = await res.json();
+    if (!res.ok || !data.alternatives) {
+      cnt.innerHTML = '<p style="color:var(--danger);font-size:14px">' + esc(data.error||"Fehler.") + '</p>';
+      return;
+    }
+    var html = "";
+    data.alternatives.forEach(function(alt) {
+      html += '<div class="alt-card"><div class="alt-name">' + esc(alt.name) + '</div>'
+        + (alt.amount ? '<div class="alt-amount">Menge: ' + esc(alt.amount) + '</div>' : '')
+        + '<div class="alt-note">' + esc(alt.note) + '</div></div>';
+    });
+    cnt.innerHTML = html;
+  } catch(e) {
+    cnt.innerHTML = '<p style="color:var(--danger);font-size:14px">Fehler: ' + esc(e.message) + '</p>';
+  }
+};
+
+window.closeSubModal = function() { var m=document.getElementById("sub-modal"); if(m) m.classList.remove("open"); };
+window.onSubModalBgClick = function(e) { if(e.target===document.getElementById("sub-modal")) window.closeSubModal(); };
+
+// ── Allergen detection ─────────────────────────────────────────────────────
+var ALLERGENS = [
+  {
+    id: "gluten",
+    name: "Gluten",
+    icon: "🌾",
+    keywords: ["mehl","weizenmehl","vollkornmehl","nudeln","spaghetti","penne","fusilli","tagliatelle","lasagne","gnocchi","spätzle","spatzle","brot","toast","brötchen","semmelbroesel","paniermehl","panko","couscous","dinkel","roggen","gerste","hafer","haferflocken","weizen","backpulver","hefe","tortilla","wrap","croissant","brezel"]
+  },
+  {
+    id: "eier",
+    name: "Eier",
+    icon: "🥚",
+    keywords: ["ei","eier","eigelb","eiweiss","eiweißreich","mayonnaise"]
+  },
+  {
+    id: "milch",
+    name: "Milch/Laktose",
+    icon: "🥛",
+    keywords: ["milch","vollmilch","magermilch","butter","sahne","schlagsahne","saure sahne","schmand","creme fraiche","joghurt","quark","magerquark","frischkäse","frischkase","philadelphia","käse","kase","gouda","emmentaler","parmesan","mozzarella","feta","ricotta","mascarpone","brie","kondensmilch","buttermilch","ghee","lachs"]
+  },
+  {
+    id: "erdnuesse",
+    name: "Erdnüsse",
+    icon: "🥜",
+    keywords: ["erdnuss","erdnüsse","erdnusse","erdnussbutter","peanut"]
+  },
+  {
+    id: "schalenfruechte",
+    name: "Schalenfrüchte",
+    icon: "🌰",
+    keywords: ["mandeln","walnüsse","walnusse","haselnüsse","haselnusse","cashews","pistazien","macadamia","pinienkerne","pekanüsse","paranüsse","kokosnuss","kokos"]
+  },
+  {
+    id: "soja",
+    name: "Soja",
+    icon: "🫘",
+    keywords: ["soja","sojasosse","sojasoße","sojasauce","tofu","tempeh","edamame","sojamilch","miso"]
+  },
+  {
+    id: "fisch",
+    name: "Fisch",
+    icon: "🐟",
+    keywords: ["lachs","lachsfilet","thunfisch","kabeljau","forelle","hering","sardinen","makrele","tilapia","fischsauce","worcester","worcestershire","anchovis"]
+  },
+  {
+    id: "krebstiere",
+    name: "Krebstiere",
+    icon: "🦐",
+    keywords: ["garnelen","krabben","hummer","krebs","shrimp"]
+  },
+  {
+    id: "weichtiere",
+    name: "Weichtiere",
+    icon: "🦑",
+    keywords: ["tintenfisch","oktopus","muscheln","auster","austernsosse","austernsoße","schnecken","kalmar"]
+  },
+  {
+    id: "sesam",
+    name: "Sesam",
+    icon: "🌱",
+    keywords: ["sesam","sesamöl","sesamol","tahin","tahini"]
+  },
+  {
+    id: "sellerie",
+    name: "Sellerie",
+    icon: "🥬",
+    keywords: ["sellerie","stangensellerie","knollensellerie"]
+  },
+  {
+    id: "senf",
+    name: "Senf",
+    icon: "🟡",
+    keywords: ["senf","dijonsenf","mustard"]
+  },
+  {
+    id: "lupinen",
+    name: "Lupinen",
+    icon: "🌿",
+    keywords: ["lupine","lupinenmehl"]
+  },
+  {
+    id: "schwefel",
+    name: "Schwefeldioxid",
+    icon: "🍷",
+    keywords: ["wein","rotwein","weisswein","weißwein","weinessig","balsamico","trockenfrüchte","rosinen","sultaninen"]
+  }
+];
+
+function detectAllergens(ingredients) {
+  var found = [];
+  var ingText = ingredients
+    .filter(function(i){ return i.name; })
+    .map(function(i){ return i.name.toLowerCase(); })
+    .join(" ");
+
+  ALLERGENS.forEach(function(allergen) {
+    var hit = allergen.keywords.some(function(kw) {
+      return ingText.indexOf(kw) >= 0;
+    });
+    if (hit) found.push(allergen);
+  });
+  return found;
+}
+
+function allergenBoxHtml(ingredients) {
+  var allergens = detectAllergens(ingredients);
+  if (allergens.length === 0) {
+    return '<div style="margin-top:24px;padding:14px 16px;background:#F0FDF4;border-radius:12px;border:1px solid #BBF7D0">'
+      +'<p style="font-size:12px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Allergene</p>'
+      +'<p style="font-size:13px;color:#15803D">&#10003; Keine der 14 EU-Hauptallergene erkannt</p>'
+      +'<p style="font-size:11px;color:#6B7280;margin-top:4px">Angaben ohne Gewähr – bitte Zutaten selbst prüfen.</p>'
+      +'</div>';
+  }
+  var tags = allergens.map(function(a){
+    return '<span style="display:inline-flex;align-items:center;gap:4px;background:#FEF9C3;border:1px solid #FDE047;border-radius:20px;padding:4px 10px;font-size:12px;font-weight:600;color:#713F12">'
+      +a.icon+' '+a.name+'</span>';
+  }).join("");
+  return '<div style="margin-top:24px;padding:14px 16px;background:#FFFBEB;border-radius:12px;border:1px solid #FDE047">'
+    +'<p style="font-size:12px;font-weight:700;color:#92400E;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">&#9888; Enthält Allergene</p>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">'+tags+'</div>'
+    +'<p style="font-size:11px;color:#6B7280">Basierend auf den 14 EU-Hauptallergenen. Angaben ohne Gewähr.</p>'
+    +'</div>';
+}
+
+// ── Weekly nutrition ────────────────────────────────────────────────────────
+async function fetchNutritionForRecipe(recipe, portions) {
+  var base = parseInt(recipe.servings) || 1;
+  var ings = (recipe.ingredients||[]).filter(function(i){ return i.name && i.amount; })
+    .map(function(i){ return { name: i.name, amount: i.amount, unit: i.unit }; });
+  if (ings.length === 0) return null;
+  try {
+    var res = await fetch("/api/nutrition", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ingredients: ings, servings: base })
+    });
+    var data = await res.json();
+    if (!res.ok || !data.perServing) return null;
+    // Scale to requested portions then divide by portions = per person
+    var scale = portions / base;
+    return {
+      kcal:    Math.round(data.perServing.kcal),
+      protein: Math.round(data.perServing.protein * 10) / 10,
+      carbs:   Math.round(data.perServing.carbs * 10) / 10,
+      fat:     Math.round(data.perServing.fat * 10) / 10,
+    };
+  } catch(e) { return null; }
+}
+
+async function loadWeekNutrition() {
+  // Load one at a time to avoid overwhelming the API
+  for (var di = 0; di < DAYS.length; di++) {
+    var day = DAYS[di];
+    for (var mi = 0; mi < MEALS.length; mi++) {
+      var meal = MEALS[mi];
+      var key = day + "__" + meal;
+      var entry = S.weekPlan[key];
+      if (!entry) continue;
+      var r = entry && entry.recipe ? entry.recipe : entry;
+      if (!r || !r.id) continue;
+      var portions = entry.portions || parseInt((r.servings)||"1") || 1;
+      var cacheKey = r.id + "__" + portions;
+      if (S.weekNutritionCache[cacheKey]) continue;
+      try {
+        var n = await fetchNutritionForRecipe(r, portions);
+        if (n) {
+          S.weekNutritionCache[cacheKey] = n;
+          // Update this day's display
+          var el = document.getElementById("day-nutrition-" + day);
+          if (el) el.innerHTML = dayNutritionHtml(day);
+        }
+      } catch(e) { /* skip failed */ }
+    }
+  }
+}
+
+function dayNutritionHtml(day) {
+  var totals = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
+  var found = false;
+  var loading = false;
+  MEALS.forEach(function(meal) {
+    var key = day + "__" + meal;
+    var entry = S.weekPlan[key];
+    if (!entry) return;
+    var r = entry.recipe || entry;
+    var cacheKey = r.id + "__" + entry.portions;
+    if (S.weekNutritionCache[cacheKey]) {
+      var n = S.weekNutritionCache[cacheKey];
+      totals.kcal    += n.kcal;
+      totals.protein += n.protein;
+      totals.carbs   += n.carbs;
+      totals.fat     += n.fat;
+      found = true;
+    } else {
+      loading = true;
+    }
+  });
+
+  var hasMeals = MEALS.some(function(meal){ return !!S.weekPlan[day+"__"+meal]; });
+  if (!hasMeals) return "";
+
+  if (!found && loading) {
+    return '<div style="padding:8px 16px 12px;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted)">'
+      +'<div class="spinner spinner-sm"></div> Nährwerte werden berechnet…</div>';
+  }
+
+  if (!found) return "";
+
+  var statStyle = 'style="text-align:center;flex:1"';
+  var valStyle = 'style="font-size:15px;font-weight:800;color:var(--green-darkest)"';
+  var lblStyle = 'style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px"';
+
+  return '<div style="padding:10px 16px 14px;border-top:1px solid var(--border)">'
+    +'<p style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">&#127869; Pro Person'+(loading?' <span style=\"font-size:10px\">&#8987;</span>':'')+'</p>'
+    +'<div style="display:flex;gap:8px">'
+    +'<div '+statStyle+'><div '+valStyle+'>'+Math.round(totals.kcal)+'</div><div '+lblStyle+'>kcal</div></div>'
+    +'<div '+statStyle+'><div '+valStyle+'>'+Math.round(totals.protein*10)/10+'</div><div '+lblStyle+'>Eiweiß</div></div>'
+    +'<div '+statStyle+'><div '+valStyle+'>'+Math.round(totals.carbs*10)/10+'</div><div '+lblStyle+'>Kohlenhydrate</div></div>'
+    +'<div '+statStyle+'><div '+valStyle+'>'+Math.round(totals.fat*10)/10+'</div><div '+lblStyle+'>Fett</div></div>'
+    +'</div>'
+    +(loading?'<p style="font-size:10px;color:var(--text-muted);margin-top:4px">⏳ Einige Werte werden noch geladen…</p>':'')
+    +'</div>';
+}
+
+// ── Wine recommendation ────────────────────────────────────────────────────
+var _wineCache = {};
+
+window.recalcNutritionNow = async function() {
+  var r = S.viewing; if (!r) return;
+  S.nutritionLoading = true; S.nutrition = null; renderNutritionBox();
+  try {
+    var ings = (r.ingredients||[]).filter(function(i){return i.name && i.amount;}).map(function(i){return {name:i.name,amount:i.amount,unit:i.unit};});
+    var res = await fetch("/api/nutrition", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ingredients: ings, servings: r.servings || 1})
+    });
+    var data = await res.json();
+    if (res.ok && data.total) {
+      r.nutrition = { total: data.total, baseServings: parseInt(r.servings)||1 };
+      // Im Hintergrund auch in Firebase speichern, damit es dauerhaft gespeichert bleibt
+      var saveData = Object.assign({}, r); var rid = saveData.id; delete saveData.id;
+      Object.keys(saveData).forEach(function(k){ if(saveData[k]===undefined) delete saveData[k]; });
+      await setDoc(doc(db, "recipes", rid), saveData);
+      toast("N\u00e4hrwerte berechnet und gespeichert \u2713");
+    }
+  } catch(e) {}
+  S.nutritionLoading = false;
+  loadNutritionScaled(r, S.scaledPortions || parseInt(r.servings) || 1);
+};
+
+window.loadWineRecommendation = async function() {
+  var r = S.viewing; if (!r) return;
+  var el = document.getElementById("wine-box");
+  if (!el) return;
+
+  var cacheKey = r.id;
+  if (_wineCache[cacheKey]) {
+    el.innerHTML = wineBoxHtml(_wineCache[cacheKey]);
+    return;
+  }
+
+  el.innerHTML = '<div class="wine-loading"><div class="spinner spinner-sm"></div> Weinempfehlung wird geladen…</div>';
+
+  try {
+    var res = await fetch("/api/wine", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: r.name, description: r.description, ingredients: r.ingredients, tags: r.tags }),
+    });
+    var data = await res.json();
+    if (!res.ok || !data.wines) {
+      el.innerHTML = '<p style="font-size:13px;color:var(--text-muted)">Keine Empfehlung verfügbar.</p>';
+      return;
+    }
+    _wineCache[cacheKey] = data.wines;
+    el.innerHTML = wineBoxHtml(data.wines);
+  } catch(e) {
+    el.innerHTML = '<p style="font-size:13px;color:var(--danger)">Fehler: ' + e.message + '</p>';
+  }
+};
+
+window.addWineByIndex = function(idx) {
+  var d = _wineCache["__btn__" + idx];
+  if (d) window.addWineToList(d.grape, d.type, d.region);
+};
+
+window.addWineToList = function(grape, type, region) {
+  var label = (grape||'') + (type ? ' (' + type + ')' : '');
+  if (!label.trim()) { toast('Kein Wein ausgewählt'); return; }
+  var exists = S.wineList.some(function(w){ return w.label === label; });
+  if (exists) { toast(label + ' bereits auf der Liste ✓'); return; }
+  S.wineList.push({ label: label, region: region||'', done: false });
+  fbSaveWineList();
+  toast('✓ ' + label + ' zur Einkaufsliste hinzugefügt');
+};
+
+function wineBoxHtml(wines) {
+  var html = '';
+  wines.forEach(function(w, wi) {
+    var btn = document.createElement('button');
+    btn.className = 'btn btn-sm';
+    btn.style.cssText = 'margin-top:10px;background:#EDE9FE;color:#5B21B6;border:none';
+    btn.textContent = '+ Zur Einkaufsliste';
+    btn._wGrape = w.grape; btn._wType = w.type; btn._wRegion = w.region;
+    btn.onclick = function() { window.addWineToList(this._wGrape, this._wType, this._wRegion); };
+    var btnHtml = '__WINE_BTN_' + wi + '__';
+    html += '<div class="wine-card">'
+      + '<div class="wine-header"><span class="wine-type">&#127863; ' + esc(w.type) + '</span><span class="wine-price">' + esc(w.price) + '</span></div>'
+      + '<div class="wine-grape">' + esc(w.grape) + '</div>'
+      + '<div class="wine-region">&#128205; ' + esc(w.region) + '</div>'
+      + '<div class="wine-note">' + esc(w.note) + '</div>'
+      + '<div id="wine-btn-' + wi + '" style="margin-top:10px"></div>'
+      + '</div>';
+    // Store button for later attachment
+    _wineCache['__btn__' + wi] = { grape: w.grape, type: w.type, region: w.region, btn: btn };
+  });
+  // Attach buttons after render
+  setTimeout(function() {
+    wines.forEach(function(w, wi) {
+      var slot = document.getElementById('wine-btn-' + wi);
+      var d = _wineCache['__btn__' + wi];
+      if (slot && d) {
+        var b = document.createElement('button');
+        b.className = 'btn btn-sm';
+        b.style.cssText = 'background:#EDE9FE;color:#5B21B6;border:none';
+        b.textContent = '+ Zur Einkaufsliste';
+        b.onclick = (function(grape, type, region) {
+          return function() { window.addWineToList(grape, type, region); };
+        })(d.grape, d.type, d.region);
+        slot.appendChild(b);
+      }
+    });
+  }, 50);
+  return html;
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function pushState(){
+  var state={tab:S.tab,view:S.view,viewingId:S.viewing?S.viewing.id:null};
+  var url="?tab="+S.tab+(S.view!=="list"?"&view="+S.view:"")+(S.viewing?"&id="+S.viewing.id:"");
+  history.pushState(state,"",url);
+}
+window.addEventListener("popstate",function(e){
+  if(!e.state) return;
+  S.tab=e.state.tab||"recipes";S.view=e.state.view||"list";S.nutrition=null;
+  if(e.state.viewingId){S.viewing=S.recipes.find(function(r){return r.id===e.state.viewingId;})||null;}
+  else{S.viewing=null;}
+  S.editing=null;
+  ["recipes","week","shopping"].forEach(function(t){document.getElementById("nav-"+t).classList.toggle("active",t===S.tab);});
+  renderOnly();
+});
+
+function renderOnly(){
+  document.getElementById("loading").style.display="none";
+  document.getElementById("app").style.display="flex";
+  var el=document.getElementById("content");
+  if(S.tab==="recipes"){
+    if(S.view==="list") el.innerHTML=tplList();
+    else if(S.view==="form") el.innerHTML=tplForm();
+    else if(S.view==="detail") el.innerHTML=tplDetail();
+  } else if(S.tab==="week"){
+    el.innerHTML=tplWeek();
+  } else {
+    el.innerHTML=tplShopping();
+  }
+}
+function render(){renderOnly();pushState();}
+
+// ── Templates ──────────────────────────────────────────────────────────────
+function tplList(){
+  var q=S.search.toLowerCase();
+  var list=S.recipes.filter(function(r){
+    if(r.name.toLowerCase().indexOf(q)<0) return false;
+    if(S.activeFilters.length>0){
+      var rTags=r.tags||[];
+      var allMatch=S.activeFilters.every(function(f){return rTags.indexOf(f)>=0;});
+      if(!allMatch) return false;
+    }
+    return true;
+  });
+  var cards="";
+  if(list.length===0){
+    cards='<div class="empty"><div class="empty-icon">&#128214;</div><h3>'+(S.search?"Keine Treffer":"Noch keine Rezepte")+'</h3><p>'+(S.search?"Anderen Begriff versuchen.":"F&uuml;ge dein erstes Rezept hinzu!")+'</p></div>';
+  } else {
+    list.forEach(function(r){
+      var ings=(r.ingredients||[]).filter(function(i){return i.name;}).length;
+      var owner=isOwner(r);
+      var thumb = r.photo ? '<img src="'+r.photo+'" style="width:64px;height:64px;border-radius:10px;object-fit:cover;flex-shrink:0" />' : '';
+      cards+='<div class="card recipe-card" onclick="doView(\''+r.id+'\')"><div class="recipe-card-top">'
+        +thumb
+        +'<div class="recipe-card-body">'
+        +'<div class="recipe-name">'+esc(r.name)+'</div>'
+        +(r.description?'<div class="recipe-desc">'+esc(r.description)+'</div>':"")
+        +'<div class="recipe-meta">'
+        +(r.servings?'<span>'+svg(I.users,12)+' '+esc(r.servings)+' Portionen</span>':"")
+        +(r.prepTime?'<span>'+svg(I.clock,12)+' '+esc(r.prepTime)+'</span>':"")
+        +'<span>'+ings+' Zutaten</span></div>'
+        +(r.createdByName&&!owner?'<div class="recipe-author">von '+esc(r.createdByName)+'</div>':"")
+        +((r.tags&&r.tags.length)?'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">'+(r.tags||[]).slice(0,4).map(function(t){return tagHtml(t,false,false);}).join("")+'</div>':"")
+        +'</div>'
+        +'<div class="card-actions" onclick="event.stopPropagation()">'
+        +(owner?'<button class="btn btn-ghost btn-icon" onclick="doEdit(\''+r.id+'\')" title="Bearbeiten">'+svg(I.edit)+'</button>':'')
+        +(owner?'<button class="btn btn-danger btn-icon" onclick="doDelete(\''+r.id+'\')" title="L&ouml;schen">'+svg(I.trash)+'</button>':'<span title="Nur der Ersteller kann dieses Rezept bearbeiten" style="padding:6px;color:var(--text-muted)">'+svg(I.lock,15)+'</span>')
+        +'</div></div></div>';
+    });
+  }
+  var hasFilters = S.activeFilters.length > 0;
+  return '<div class="section-hd"><h2>Rezepte <span style="color:var(--text-muted);font-weight:400;font-size:16px">('+list.length+(S.recipes.length!==list.length?'/'+S.recipes.length:'')+')</span></h2>'
+    +'<div style="display:flex;gap:8px">'
+    +'<button class="btn btn-secondary" onclick="toggleFilterPanel()" style="'+(S.filterOpen||hasFilters?'background:var(--green-light);color:var(--green-darkest)':'')+'">&#9878; Filter'+(hasFilters?' ('+S.activeFilters.length+')':'')+'</button>'
+    +'<button class="btn btn-secondary" onclick="openImportModal()">&#128203; Importieren</button>'
+    +'<button class="btn btn-primary" onclick="doNew()">'+svg(I.plus)+' Neu</button></div></div>'
+    +'<div class="search-wrap"><span class="search-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>'
+    +'<input class="search-input" id="recipe-search-input" placeholder="Rezepte durchsuchen\u2026" value="'+esc(S.search)+'" oninput="debouncedSearch(this.value)" /></div>'
+    +(S.filterOpen ? filterPanel() : '')
+    +'<div class="recipe-grid">'+cards+'</div>';
+}
+
+function tplDetail(){
+  var r=S.viewing; if(!r) return "";
+  var ings=(r.ingredients||[]).filter(function(i){return i.name;});
+  var steps=(r.steps||[]).filter(function(s){return s.text;});
+  var basePortions = parseInt(r.servings)||1;
+  var scaledBase = S.scaledPortions || basePortions;
+  var scaledIngRows="";
+  var otherIngs=ings.map(function(i){return i.name;});
+  ings.forEach(function(i,idx2){
+    var amt=scaleAmount(i.amount,basePortions,scaledBase);
+    scaledIngRows+='<li><span class="ing-dot"></span><span class="ing-amount">'+esc([amt,i.unit].filter(Boolean).join(" ")||"\u2014")+'</span><span style="flex:1">'+esc(i.name)+'</span>'
+      +'<button class="sub-btn" data-idx="'+idx2+'">Ersetzen?</button></li>';
+  });
+  var ingRows=scaledIngRows;
+  var stepRows="";
+  steps.forEach(function(s,idx){stepRows+='<li class="step-item"><div class="step-num">'+(idx+1)+'</div><p class="step-text">'+esc(s.text)+'</p></li>';});
+  var bringItems=JSON.stringify(ings.map(function(i){return {name:i.name,amount:[i.amount,i.unit].filter(Boolean).join(" ")};}));
+  var owner=isOwner(r);
+  var _r=r; var _scaled=scaledBase;
+  var _ings=ings; var _rname=r.name;
+  setTimeout(function(){
+    loadNutritionScaled(_r,_scaled);
+    // Store sub data globally and attach click handlers
+    _subData = _ings.map(function(ing,i){
+      return {
+        ingredient: ing.name,
+        amount: scaleAmount(ing.amount, parseInt(_r.servings)||1, _scaled)||"",
+        unit: ing.unit||"",
+        recipeName: _rname,
+        others: _ings.filter(function(_,j){return j!==i;}).map(function(x){return x.name;})
+      };
+    });
+    document.querySelectorAll(".sub-btn").forEach(function(btn){
+      btn.onclick = function(){ window.triggerSub(btn); };
+    });
+  },50);
+  var photoHtml = r.photo ? '<img src="'+r.photo+'" style="width:100%;max-height:340px;object-fit:cover;border-radius:14px;margin-bottom:20px" />' : '';
+  return '<button class="btn btn-ghost btn-sm" onclick="doBack()" style="margin-bottom:20px">'+svg(I.back)+' Zur&uuml;ck</button>'
+    +'<div class="card detail-card">'
+    +photoHtml
+    +'<h1 class="detail-title">'+esc(r.name)+'</h1>'
+    +(r.description?'<p class="detail-desc">'+esc(r.description)+'</p>':"")
+    +'<div class="detail-meta">'
+    +(r.prepTime?'<span>'+svg(I.clock,16)+' '+esc(r.prepTime)+'</span>':"")
+    +(r.createdByName?'<span style="font-size:12px;color:var(--text-muted)">von '+esc(r.createdByName)+'</span>':"")
+    +'</div>'
+    +((r.tags&&r.tags.length)?'<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:16px">'+(r.tags||[]).map(function(t){return tagHtml(t,false,false);}).join('')+'</div>':"")
+    +'<div style="display:flex;align-items:center;gap:14px;background:var(--green-faint);border-radius:12px;padding:14px 18px;margin-bottom:24px;flex-wrap:wrap">'
+    +'<span style="font-size:13px;font-weight:700;color:var(--green-darkest)">'+svg(I.users,15)+' Portionen:</span>'
+    +'<div style="display:flex;align-items:center;gap:8px">'
+    +'<button onclick="setScaledPortions('+(scaledBase-1>0?scaledBase-1:1)+')" style="width:30px;height:30px;border-radius:50%;border:1.5px solid var(--border);background:var(--surface);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:700;color:var(--green-dark)">&#8722;</button>'
+    +'<span id="portions-display" style="font-size:18px;font-weight:800;color:var(--green-darkest);min-width:28px;text-align:center">'+scaledBase+'</span>'
+    +'<button onclick="setScaledPortions('+(scaledBase+1)+')" style="width:30px;height:30px;border-radius:50%;border:1.5px solid var(--border);background:var(--surface);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:700;color:var(--green-dark)">&#43;</button>'
+    +'</div>'
+    +(scaledBase !== basePortions ? '<span style="font-size:12px;color:var(--text-muted)">(Originalrezept: '+basePortions+' Portion'+(basePortions>1?'en':'')+')</span>' : '')
+    +'</div>'
+    +'<div class="nutrition-box" id="nutrition-box"><div class="nutrition-loading"><div class="spinner spinner-sm"></div> N&auml;hrwerte werden berechnet&hellip;</div></div>'
+    +'<p class="section-label">Zutaten</p><ul class="ingredient-list" id="scaled-ingredients">'+scaledIngRows+'</ul>'
+    +'<p class="section-label">Zubereitung</p><ol class="steps-list">'+stepRows+'</ol>'
+    +'<div class="detail-actions">'
+    +(owner?'<button class="btn btn-secondary" onclick="doEdit(\''+r.id+'\')">'+svg(I.edit)+' Bearbeiten</button>':"")
+    +'<button class="btn btn-secondary" onclick="doCopyDetail()">'+svg(I.copy)+' Kopieren</button>'
+    +'<button class="btn btn-secondary" onclick="doDlDetail()">'+svg(I.dl)+' Als .txt</button>'
+    +'<button class="btn btn-bring" onclick="openBringModal('+esc(bringItems)+')">&#127819; Nach Bring</button>'
+    +'<button class="btn btn-secondary" onclick="doDetailToWeek()">'+svg(I.cal)+' Zum Wochenplan</button>'
+    +'</div>'
+    +'<div class="wine-box" style="margin-bottom:16px"><div id="wine-box"><button class="btn" style="background:#FAF5FF;color:#7C3AED;border:1.5px solid #E9D5FF" onclick="loadWineRecommendation()">&#127863; Weinempfehlung anzeigen</button></div></div>'
+    +allergenBoxHtml(ings)
+    +'</div>';
+}
+
+function tplForm(){
+  var r=S.editing||{id:null,name:"",description:"",servings:"2",prepTime:"",ingredients:[{id:uid(),amount:"",unit:"",name:""}],steps:[{id:uid(),text:""}]};
+  var ingRows="";
+  (r.ingredients||[]).forEach(function(ing){
+    ingRows+='<div class="ing-row" data-ing="'+ing.id+'">'
+      +'<input class="inp inp-sm" data-f="amount" value="'+esc(ing.amount)+'" placeholder="Menge" onkeydown="handleIngKeydown(event,this)" />'
+      +buildUnitSelect(ing.unit)
+      +'<input class="inp inp-sm" data-f="name" value="'+esc(ing.name)+'" placeholder="Zutat" onkeydown="handleIngKeydown(event,this)" />'
+      +'<button class="remove-btn" onclick="removeIng(\''+ing.id+'\')">'+svg(I.x,14)+'</button></div>';
+  });
+  var stepRows="";
+  (r.steps||[]).forEach(function(s,idx){
+    stepRows+='<div class="step-row" data-step="'+s.id+'">'
+      +'<div class="step-row-num">'+(idx+1)+'</div>'
+      +'<textarea class="inp" rows="2" data-f="text" style="flex:1;resize:vertical" placeholder="Schritt '+(idx+1)+'\u2026" onkeydown="handleStepKeydown(event,this)">'+esc(s.text)+'</textarea>'
+      +'<button class="remove-btn" onclick="removeStep(\''+s.id+'\')" style="margin-top:6px">'+svg(I.x,14)+'</button></div>';
+  });
+  var eid=esc(r.id||"");
+  var photoSection = '<div class="field col2"><label>Foto</label>'
+    + '<div id="photo-preview-wrap" style="' + (r.photo?'':'display:none') + ';margin-bottom:10px">'
+    + '<img id="photo-preview" src="' + (r.photo||'') + '" style="max-width:100%;max-height:220px;border-radius:12px;border:1.5px solid var(--border);display:block" />'
+    + '<button type="button" class="btn btn-ghost btn-sm" onclick="removePhoto()" style="margin-top:6px;color:var(--danger)">&#10005; Foto entfernen</button>'
+    + '</div>'
+    + '<div id="photo-drop" style="border:2px dashed var(--border);border-radius:12px;padding:20px;text-align:center;cursor:pointer;' + (r.photo?'display:none':'') + '" onclick="document.getElementById(\'f-photo\').click()" ondragover="event.preventDefault()" ondrop="onPhotoDrop(event)">'
+    + '<div style="font-size:28px;margin-bottom:6px">&#128247;</div>'
+    + '<p style="font-size:13px;color:var(--text-muted)">Foto hochladen oder hineinziehen</p>'
+    + '</div>'
+    + '<input type="file" id="f-photo" accept="image/*" style="display:none" onchange="onPhotoSelected(event)" />'
+    + '</div>';
+
+  return '<h2 style="font-size:22px;font-weight:800;margin-bottom:20px">'+(r.id?"Rezept bearbeiten":"Neues Rezept")+'</h2>'
+    +'<div class="card form-card"><div class="form-grid">'
+    +photoSection
+    +'<div class="field col2"><label>Rezeptname *</label><input class="inp" id="f-name" value="'+esc(r.name)+'" placeholder="z.B. Spaghetti Carbonara" /></div>'
+    +'<div class="field"><label>Portionen</label><input class="inp" id="f-srv" type="number" value="'+esc(r.servings)+'" /></div>'
+    +'<div class="field"><label>Zubereitungszeit</label><input class="inp" id="f-time" value="'+esc(r.prepTime||"")+'" placeholder="z.B. 30 min" /></div>'
+    +'<div class="field col2"><label>Kurzbeschreibung</label><textarea class="inp" id="f-desc" rows="2" style="resize:vertical" placeholder="Was macht dieses Rezept besonders?">'+esc(r.description||"")+'</textarea></div>'
+    +((r.tags&&r.tags.length)?'<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px">'+(r.tags||[]).map(function(t){return tagHtml(t,false,false);}).join('')+'</div>':'')
+    +'</div>'
+    +'<div class="form-section"><div class="form-section-hd"><span class="form-section-label">Zutaten *</span><button class="btn btn-ghost btn-sm" onclick="addIng()">'+svg(I.plus,14)+' Hinzuf&uuml;gen</button></div><div id="ing-list">'+ingRows+'</div></div>'
+    +'<div class="form-section"><div class="form-section-hd"><span class="form-section-label">Zubereitung *</span><button class="btn btn-ghost btn-sm" onclick="addStep()">'+svg(I.plus,14)+' Schritt</button></div><div id="step-list">'+stepRows+'</div></div>'
+    +'<div class="form-footer"><button class="btn btn-secondary" onclick="doBack()">Abbrechen</button><button class="btn btn-primary" onclick="doSave(\''+eid+'\')">'+svg(I.check)+' Speichern</button></div></div>';
+}
+
+function tplWeek(){
+  var entries=getWeekEntries(); var hasAny=entries.length>0;
+  var rows="";
+  DAYS.forEach(function(day){
+    rows+='<div style="background:var(--surface);border-radius:14px;border:1.5px solid #E4F2E1;margin-bottom:10px;overflow:hidden">'
+      +'<div style="padding:10px 16px;font-weight:800;font-size:15px;background:var(--green-faint);border-bottom:1px solid var(--border)">'+day+'</div>';
+    MEALS.forEach(function(meal){
+      var key=day+"__"+meal;
+      var entry=S.weekPlan[key];
+      var r=entry?(entry.recipe||entry):null;
+      var portions=entry?(entry.portions||parseInt((r||{}).servings)||1):1;
+      rows+='<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--green-faint)">';
+      rows+='<span style="font-size:16px;width:24px;text-align:center">'+MEAL_ICONS[meal]+'</span>';
+      rows+='<span style="font-size:12px;font-weight:700;color:var(--text-muted);min-width:90px;text-transform:uppercase;letter-spacing:.5px">'+meal+'</span>';
+      if(r){
+        rows+='<div class="week-tag" style="flex:1">'+esc(r.name)+'</div>';
+        rows+='<select class="inp inp-sm" style="width:auto;padding:4px 8px;font-size:12px" onchange="setWeekPortions(\x27'+key+'\x27,this.value)">';
+        for(var p=1;p<=12;p++){rows+='<option value="'+p+'"'+(p===portions?" selected":"")+'>'+(p>1?p+"x":"1x")+'</option>';}
+        rows+='</select>';
+        rows+='<button style="background:none;border:none;cursor:pointer;color:#9CA3AF;display:flex;padding:4px" onclick="removeFromWeek(\x27'+key+'\x27)">'+svg(I.x,14)+'</button>';
+      } else {
+        rows+='<button class="week-empty" style="flex:1" onclick="openWeekModal(\x27'+key+'\x27)">+ Rezept ausw&auml;hlen&hellip;</button>';
+      }
+      rows+='</div>';
+    });
+    rows+='<div id="day-nutrition-'+day+'"></div>';
+    rows+='</div>';
+  });
+  var exportBtns="";
+  if(hasAny){
+    var weekIngs=mergeWeekIngredients();
+    var weekBringItems=JSON.stringify(weekIngs.map(function(i){return {name:i.name,amount:[i.amount,i.unit].filter(Boolean).join(" ")};}));
+    exportBtns='<div style="display:flex;gap:8px;flex-wrap:wrap">'
+      +'<button class="btn btn-secondary btn-sm" onclick="doCopyWeek()">'+svg(I.copy,14)+' Kopieren</button>'
+      +'<button class="btn btn-secondary btn-sm" onclick="doDlWeek()">'+svg(I.dl,14)+' Als .txt</button>'
+      +'<button class="btn btn-bring btn-sm" onclick="openBringModal('+esc(weekBringItems)+')">&#127819; Nach Bring</button>'
+      +'</div>';
+  }
+  var combined="";
+  if(hasAny){
+    var ings=mergeWeekIngredients(); var items="";
+    ings.forEach(function(i){items+='<div class="combined-item"><span style="color:var(--green-mid)">&#8226;</span><span>'+esc(fmtIng(i))+'</span></div>';});
+    combined='<div class="combined-box"><h3>Einkaufsliste f&uuml;r diese Woche</h3><div class="combined-items">'+items+'</div></div>';
+  }
+  // Trigger background nutrition load after render
+  setTimeout(function(){ loadWeekNutrition(); }, 200);
+
+  return '<div class="section-hd"><h2>Wochenplan</h2>'+exportBtns+'</div>'+rows+combined;
+}
+function makeShopItem(key, label, done) {
+  var safeKey = key.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  var checkSvg = done ? '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>' : '';
+  var safeLabel = label.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return '<div class="shop-item' + (done?' done':'') + '" data-key="' + key.replace(/"/g,'&quot;') + '" onclick="toggleShopI(\'' + safeKey + '\')">'
+    + '<div class="chk' + (done?' on':'') + '">' + checkSvg + '</div>'
+    + '<span>' + safeLabel + '</span>'
+    + '</div>';
+}
+
+function tplShopping(){
+  var entries=getWeekEntries(); var ings=mergeWeekIngredients();
+
+  if(entries.length===0 && S.wineList.length===0){
+    return '<h2 style="font-size:22px;font-weight:800;margin-bottom:16px">Einkaufsliste</h2>'
+      +'<div class="empty"><div class="empty-icon">&#128722;</div><h3>Noch kein Wochenplan</h3>'
+      +'<p>F&uuml;ge zuerst Rezepte zum <span style="color:var(--green-dark);cursor:pointer;text-decoration:underline" onclick="switchTab(\'week\')">Wochenplan</span> hinzu.</p></div>';
+  }
+
+  // ── Geplante Rezepte ────────────────────────────────────────────────────
+  var recipeList = '';
+  if (entries.length > 0) {
+    recipeList = '<div style="margin-bottom:20px"><p style="font-size:11px;font-weight:800;color:var(--green-darkest);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Diese Woche geplant</p>';
+    entries.forEach(function(entry){
+      var r=entry.recipe;
+      recipeList+='<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border-radius:10px;border:1.5px solid #E4F2E1;margin-bottom:6px">'
+        +(entry.meal?'<span>'+MEAL_ICONS[entry.meal]+'</span>':"")
+        +'<span style="font-weight:600;font-size:14px">'+esc(r.name)+'</span>'
+        +(entry.day?'<span style="font-size:12px;color:var(--text-muted)">'+esc(entry.day)+'</span>':"")
+        +'<span style="font-size:12px;color:var(--text-muted);margin-left:auto">'+entry.portions+'x</span></div>';
+    });
+    recipeList += '</div>';
+  }
+
+  // ── Zutaten Box ─────────────────────────────────────────────────────────
+  var shopBringItems = '[]';
+  var allItems = '';
+
+  if (ings.length > 0) {
+    var bringItems = ings
+      .filter(function(i){ return !S.shopChecked[i.name+"__"+(i.unit||"")]; })
+      .map(function(i){return {name:i.name,amount:[i.amount,i.unit].filter(Boolean).join(" ")};});
+    // Weine auch zur Bring-Liste (nur nicht abgehakte)
+    S.wineList.forEach(function(w,idx){ if(!w.done) bringItems.push({name:w.label, amount:"1 Flasche"}); });
+    shopBringItems = JSON.stringify(bringItems);
+    ings.forEach(function(i){
+      var key=i.name+"__"+(i.unit||"");
+      var done=!!S.shopChecked[key];
+      allItems+=makeShopItem(key, fmtIng(i)||i.name, done);
+    });
+  }
+
+  // ── Zusammenbauen ────────────────────────────────────────────────────────
+  // ── Weine zu allItems hinzufügen ──────────────────────────────────────────
+  if (S.wineList.length > 0) {
+    if (allItems) allItems += '<div style="height:1px;background:var(--border);margin:10px 0"></div>';
+    S.wineList.forEach(function(w, i) {
+      var done = w.done;
+      allItems += '<div class="shop-item' + (done?' done':'') + '" onclick="toggleWineItem('+i+')">'
+        + '<div class="chk' + (done?' on':'') + '">' + (done?svg(I.check,11):'') + ' </div>'
+        + '<div style="flex:1"><span>&#127863; ' + esc(w.label) + '</span>'
+        + (w.region ? '<span style="font-size:11px;color:var(--text-muted);display:block">' + esc(w.region) + '</span>' : '')
+        + '</div>'
+        + '<button onclick="removeWineItem('+i+');event.stopPropagation()" style="background:none;border:none;cursor:pointer;color:#9CA3AF;padding:4px;flex-shrink:0">' + svg(I.x,14) + '</button>'
+        + '</div>';
+    });
+  }
+
+  var label = ings.length > 0 ? 'Zutaten ('+ings.length+')' + (S.wineList.length>0?' + Weine':'') : (S.wineList.length>0?'Weine':'');
+  var shopBox = allItems ? '<div class="shop-box"><p style="font-size:11px;font-weight:800;color:var(--green-darkest);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px">'+label+'</p>'+allItems+'</div>' : '';
+
+  var actionBtns = (ings.length > 0 || S.wineList.length > 0) ?
+    '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">'
+    +'<button class="btn btn-secondary" onclick="doCopyShopping()">'+svg(I.copy)+' Kopieren</button>'
+    +'<button class="btn btn-secondary" onclick="doDlShopping()">'+svg(I.dl)+' Als .txt</button>'
+    +(ings.length>0?'<button class="btn btn-bring" onclick="openBringModal('+esc(shopBringItems)+')">&#127819; Nach Bring</button>':"")
+    +(S.wineList.length>0?'<button class="btn btn-ghost btn-sm" onclick="clearWineList()" style="color:var(--danger)">&#10005; Weine leeren</button>':"")
+    +'</div>' : '';
+
+  return '<h2 style="font-size:22px;font-weight:800;margin-bottom:8px">Einkaufsliste</h2>'
+    +'<p style="font-size:14px;color:var(--text-muted);margin-bottom:18px">Basierend auf deinem Wochenplan.</p>'
+    +recipeList+shopBox+actionBtns;
+}
+
+// ── Modal ──────────────────────────────────────────────────────────────────
+function openWeekModal(key){
+  S.modalMode="week";S.modalDay=key;
+  var parts=key.split("__");
+  var label=parts[0]+(parts[1]?" – "+parts[1]:"");
+  document.getElementById("modal-title").textContent=label;
+  document.getElementById("modal-search").style.display="";
+  document.getElementById("modal-search").value="";
+  document.getElementById("modal").classList.add("open");
+  renderModalList("");
+  // AI-Vorschläge im Hintergrund laden
+  loadWeekSuggestions(key);
+}
+window.openWeekModal=openWeekModal;
+
+function openDayModal(recipeId){
+  S.modalMode="day";S.modalRecipeId=recipeId;
+  var r=S.recipes.find(function(x){return x.id===recipeId;});
+  document.getElementById("modal-title").textContent=(r?r.name:"")+" → einplanen";
+  document.getElementById("modal-search").style.display="none";
+  document.getElementById("modal").classList.add("open");
+  var html="";
+  DAYS.forEach(function(day){
+    MEALS.forEach(function(meal){
+      var key=day+"__"+meal;
+      var entry=S.weekPlan[key];
+      var existing=entry?((entry.recipe||entry).name||""):"";
+      html+='<button class="modal-opt" onclick="assignDay(\''+day+'__'+meal+'\')">'
+        +MEAL_ICONS[meal]+' '+day+' – '+meal
+        +(existing?'<span style="font-size:12px;color:var(--text-muted)">'+esc(existing)+'</span>':"")
+        +'</button>';
+    });
+  });
+  document.getElementById("modal-list").innerHTML=html;
+}
+
+window.filterModal=function(q){renderModalList(q);};
+
+var _weekSuggestions = []; // Cache für KI-Vorschläge
+
+async function loadWeekSuggestions(key) {
+  _weekSuggestions = [];
+  var parts = key.split("__");
+  var day = parts[0];
+  var meal = parts[1];
+
+  // Alle bereits geplanten Rezepte sammeln
+  var planned = [];
+  DAYS.forEach(function(d) {
+    MEALS.forEach(function(m) {
+      var entry = S.weekPlan[d+"__"+m];
+      if (!entry) return;
+      var r = entry.recipe || entry;
+      planned.push({ day: d, meal: m, name: r.name, tags: r.tags||[] });
+    });
+  });
+
+  if (planned.length === 0 || S.recipes.length === 0) return;
+
+  // Bereits verwendete Rezeptnamen
+  var usedNames = planned.map(function(p){ return p.name; });
+
+  // Verfügbare Rezepte (noch nicht diese Woche verwendet)
+  var available = S.recipes.filter(function(r){ return usedNames.indexOf(r.name) < 0; });
+  if (available.length === 0) available = S.recipes;
+
+  // Prompt für Claude
+  var plannedText = planned.map(function(p){
+    return p.day + " " + p.meal + ": " + p.name + (p.tags.length?" ("+p.tags.join(", ")+")":"");
+  }).join("\n");
+
+  var availableText = available.map(function(r){
+    return r.id + "|" + r.name + (r.tags&&r.tags.length?" ("+r.tags.join(", ")+")":"");
+  }).join("\n");
+
+  try {
+    var res = await fetch("/api/suggest", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ planned: planned, available: available.slice(0,30), day: day, meal: meal })
+    });
+    var data = await res.json();
+    var suggestions = data.suggestions || [];
+    if (Array.isArray(suggestions) && suggestions.length > 0) {
+      _weekSuggestions = suggestions.filter(function(s){
+        return s.id && S.recipes.find(function(r){ return r.id === s.id; });
+      });
+      var searchVal = document.getElementById("modal-search");
+      if (searchVal) renderModalList(searchVal.value || "");
+    }
+  } catch(e) { /* Vorschläge konnten nicht geladen werden */ }
+}
+
+// Mapping Mahlzeit → passende Tags
+var MEAL_TAG_MAP = {
+  "Frühstück":  ["Frühstück"],
+  "Mittagessen": ["Hauptgericht","Suppe/Eintopf","Salat","Bowl"],
+  "Abendessen":  ["Hauptgericht","Suppe/Eintopf","Pasta/Nudeln","Reis/Getreide","Curry","Pfannengericht","Pizza"],
+};
+
+var _weekSuggestions = [];
+
+
+window.filterModal = function(q){ renderModalList(q); };
+
+function renderModalList(q) {
+  var el = document.getElementById("modal-list");
+  if (!el) return;
+  var lq = q.toLowerCase();
+  var list = S.recipes.filter(function(r){ return r.name.toLowerCase().indexOf(lq) >= 0; });
+  if (list.length === 0) {
+    el.innerHTML = '<p style="color:var(--text-muted);font-size:14px;text-align:center;padding:20px">Keine Rezepte gefunden.</p>';
+    return;
+  }
+
+  var mealKey = S.modalDay ? S.modalDay.split("__")[1] : null;
+  var matchTags = mealKey ? (MEAL_TAG_MAP[mealKey] || []) : [];
+
+  function recipeBtn(r, reason) {
+    var timeSpan = r.prepTime ? '<span style="font-size:12px;color:var(--text-muted)">'+esc(r.prepTime)+'</span>' : '';
+    var reasonSpan = reason ? '<span style="font-size:11px;color:var(--green-dark);font-weight:500">'+esc(reason)+'</span>' : timeSpan;
+    return '<button class="modal-opt" onclick="assignWeek(\''+r.id+'\')">'+esc(r.name)+reasonSpan+'</button>';
+  }
+
+  var usedIds = {};
+  var html = "";
+
+  // Section 1: KI-Vorschläge
+  if (_weekSuggestions.length > 0) {
+    var shown = _weekSuggestions.filter(function(s){
+      var r = S.recipes.find(function(x){ return x.id === s.id; });
+      return r && r.name.toLowerCase().indexOf(lq) >= 0;
+    });
+    if (shown.length > 0) {
+      html += '<div style="font-size:10px;font-weight:800;color:#7C3AED;text-transform:uppercase;letter-spacing:1px;padding:6px 4px 4px">&#10024; KI-Vorschläge</div>';
+      shown.forEach(function(s) {
+        var r = S.recipes.find(function(x){ return x.id === s.id; });
+        if (r) { html += recipeBtn(r, s.reason); usedIds[r.id] = true; }
+      });
+      html += '<div style="height:1px;background:var(--border);margin:8px 0"></div>';
+    }
+  } else if (Object.keys(S.weekPlan).length > 0) {
+    html += '<div style="font-size:12px;color:var(--text-muted);padding:6px 4px;display:flex;align-items:center;gap:6px"><div class="spinner spinner-sm"></div> Vorschläge werden berechnet\u2026</div>';
+    html += '<div style="height:1px;background:var(--border);margin:8px 0"></div>';
+  }
+
+  // Section 2: Passende Rezepte nach Mahlzeit
+  var matching = list.filter(function(r){
+    if (usedIds[r.id]) return false;
+    var t = r.tags || [];
+    return matchTags.length > 0 && matchTags.some(function(tag){ return t.indexOf(tag) >= 0; });
+  });
+  var others = list.filter(function(r){
+    if (usedIds[r.id]) return false;
+    var t = r.tags || [];
+    return !(matchTags.length > 0 && matchTags.some(function(tag){ return t.indexOf(tag) >= 0; }));
+  });
+
+  if (matching.length > 0) {
+    html += '<div style="font-size:10px;font-weight:800;color:var(--green-darkest);text-transform:uppercase;letter-spacing:1px;padding:6px 4px 4px">'+(mealKey||"Passend")+' ('+matching.length+')</div>';
+    matching.forEach(function(r){ html += recipeBtn(r, null); });
+  }
+  if (others.length > 0) {
+    if (matching.length > 0) html += '<div style="height:1px;background:var(--border);margin:8px 0"></div>';
+    html += '<div style="font-size:10px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;padding:4px">Alle anderen ('+others.length+')</div>';
+    others.forEach(function(r){ html += recipeBtn(r, null); });
+  }
+
+  el.innerHTML = html;
+}
+
+window.closeModal=function(){document.getElementById("modal").classList.remove("open");_weekSuggestions=[];};
+window.onModalBgClick=function(e){if(e.target===document.getElementById("modal"))window.closeModal();};
+
+window.assignWeek=async function(rid){
+  var r=S.recipes.find(function(x){return x.id===rid;});
+  if(!r||!S.modalDay)return;
+  S.weekPlan[S.modalDay]={recipe:r,portions:parseInt(r.servings)||1};
+  await fbSaveWeek();window.closeModal();render();
+};
+window.removeFromWeek=async function(key){delete S.weekPlan[key];await fbSaveWeek();render();};
+window.assignDay=async function(key){
+  var r=S.recipes.find(function(x){return x.id===S.modalRecipeId;});
+  if(!r)return;
+  var portions=S._pendingPortions||parseInt(r.servings)||1;
+  S._pendingPortions=null;
+  S.weekPlan[key]={recipe:r,portions:portions};
+  await fbSaveWeek();window.closeModal();
+  var parts=key.split("__");
+  toast(r.name+" → "+parts[0]+(parts[1]?" "+parts[1]:"")+" ✓");render();
+};
+window.setWeekPortions=async function(key,val){
+  if(!S.weekPlan[key])return;
+  var entry=S.weekPlan[key];
+  S.weekPlan[key]=Object.assign({},entry,{portions:Math.max(1,parseInt(val)||1)});
+  await fbSaveWeek();render();
+};
+
+// ── Actions ────────────────────────────────────────────────────────────────
+window.setScaledPortions=function(val){
+  S.scaledPortions=Math.max(1,parseInt(val)||1);
+  var pd=document.getElementById("portions-display");
+  if(pd) pd.textContent=S.scaledPortions;
+  // Update minus button
+  var btns=document.querySelectorAll("[onclick^='setScaledPortions']");
+  btns.forEach(function(btn){
+    var v=parseInt(btn.getAttribute("onclick").replace("setScaledPortions(","").replace(")",""));
+    btn.setAttribute("onclick","setScaledPortions("+(S.scaledPortions+(btn.textContent.includes("+")?1:-1))+")");
+  });
+  renderScaledIngredients();
+  if(S.viewing) loadNutritionScaled(S.viewing, S.scaledPortions);
+};
+
+function scaleAmount(amount, basePortions, scaled) {
+  var num = parseFloat(amount);
+  if (!num || !basePortions || !scaled) return amount;
+  var result = num * scaled / basePortions;
+  return result % 1 === 0 ? String(result) : result.toFixed(1).replace(/\.0$/,"");
+}
+
+function renderScaledIngredients() {
+  var el = document.getElementById("scaled-ingredients");
+  if (!el || !S.viewing) return;
+  var r = S.viewing;
+  var base = parseInt(r.servings) || 1;
+  var scaled = S.scaledPortions || base;
+  var ings = (r.ingredients||[]).filter(function(i){return i.name;});
+  var html = "";
+  ings.forEach(function(i){
+    var amt = scaleAmount(i.amount, base, scaled);
+    html += '<li><span class="ing-dot"></span><span class="ing-amount">'+esc([amt,i.unit].filter(Boolean).join(" ")||"\u2014")+'</span><span>'+esc(i.name)+'</span></li>';
+  });
+  el.innerHTML = html;
+}
+
+window.doNew=function(){S.editing=null;S.view="form";render();};
+window.doBack=function(){if(history.length>1){history.back();}else{S.view="list";S.editing=null;S.viewing=null;S.nutrition=null;render();}};
+window.doSearch=function(q){S.search=q;renderOnly();};
+var _searchTimer=null;
+window.debouncedSearch=function(q){
+  clearTimeout(_searchTimer);
+  _searchTimer=setTimeout(function(){ window.doSearch(q); },400);
+};
+
+// ── Batch categorize all recipes ──────────────────────────────────────────
+
+window.doEdit=function(id){S.editing=S.recipes.find(function(r){return r.id===id;});S.view="form";render();};
+window.doView=function(id){S.viewing=S.recipes.find(function(r){return r.id===id;});S.nutrition=null;S.scaledPortions=null;S.view="detail";render();};
+window.doDelete=async function(id){
+  var r=S.recipes.find(function(x){return x.id===id;});
+  if(!r||!isOwner(r)){toast("Nur der Ersteller kann dieses Rezept l\u00f6schen.");return;}
+  if(!confirm("Rezept wirklich l\u00f6schen?"))return;
+  await fbDeleteRecipe(id);toast("Rezept gel\u00f6scht.");
+};
+
+window.addIng=function(){
+  var el=document.getElementById("ing-list");var id=uid();
+  var div=document.createElement("div");div.className="ing-row";div.dataset.ing=id;
+  div.innerHTML='<input class="inp inp-sm" data-f="amount" placeholder="Menge" onkeydown="handleIngKeydown(event,this)" />'+buildUnitSelect('')+'<input class="inp inp-sm" data-f="name" placeholder="Zutat" onkeydown="handleIngKeydown(event,this)" /><button class="remove-btn" onclick="removeIng(\''+id+'\')">'+svg(I.x,14)+'</button>';
+  el.appendChild(div);
+  return div;
+};
+window.removeIng=function(id){var el=document.querySelector('[data-ing="'+id+'"]');if(el&&document.querySelectorAll("[data-ing]").length>1)el.remove();};
+window.addStep=function(){
+  var el=document.getElementById("step-list");var id=uid();var n=el.children.length+1;
+  var div=document.createElement("div");div.className="step-row";div.dataset.step=id;
+  div.innerHTML='<div class="step-row-num">'+n+'</div><textarea class="inp" rows="2" data-f="text" style="flex:1;resize:vertical" placeholder="Schritt '+n+'\u2026" onkeydown="handleStepKeydown(event,this)"></textarea><button class="remove-btn" onclick="removeStep(\''+id+'\')" style="margin-top:6px">'+svg(I.x,14)+'</button>';
+  el.appendChild(div);
+  return div;
+};
+window.removeStep=function(id){var el=document.querySelector('[data-step="'+id+'"]');if(el&&document.querySelectorAll("[data-step]").length>1)el.remove();};
+
+window.handleIngKeydown = function(e, input) {
+  if (e.key !== "Enter") return;
+  e.preventDefault();
+  var row = input.closest(".ing-row");
+  var allRows = Array.from(document.querySelectorAll(".ing-row"));
+  var idx = allRows.indexOf(row);
+  if (idx === allRows.length - 1) {
+    // Last row - add new one
+    var newRow = window.addIng();
+    setTimeout(function() {
+      var firstInput = newRow.querySelector('[data-f="amount"]');
+      if (firstInput) firstInput.focus();
+    }, 10);
+  } else {
+    // Jump to next row's amount field
+    var nextRow = allRows[idx + 1];
+    var nextInput = nextRow.querySelector('[data-f="amount"]');
+    if (nextInput) nextInput.focus();
+  }
+};
+
+window.handleStepKeydown = function(e, textarea) {
+  if (e.key !== "Enter" || e.shiftKey) return;
+  e.preventDefault();
+  var row = textarea.closest(".step-row");
+  var allRows = Array.from(document.querySelectorAll(".step-row"));
+  var idx = allRows.indexOf(row);
+  if (idx === allRows.length - 1) {
+    var newRow = window.addStep();
+    setTimeout(function() {
+      var ta = newRow.querySelector('[data-f="text"]');
+      if (ta) ta.focus();
+    }, 10);
+  } else {
+    var nextRow = allRows[idx + 1];
+    var nextTa = nextRow.querySelector('[data-f="text"]');
+    if (nextTa) nextTa.focus();
+  }
+};
+var _pendingPhotoBase64 = null;
+var _photoRemoved = false;
+
+window.onPhotoSelected = function(e) {
+  var file = e.target.files[0];
+  if (file) loadPhotoFile(file);
+};
+window.onPhotoDrop = function(e) {
+  e.preventDefault();
+  var file = e.dataTransfer.files[0];
+  if (file) loadPhotoFile(file);
+};
+function loadPhotoFile(file) {
+  if (file.size > 5 * 1024 * 1024) { toast("Foto darf maximal 5MB groß sein."); return; }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    _pendingPhotoBase64 = e.target.result;
+    _photoRemoved = false;
+    var img = document.getElementById("photo-preview");
+    var wrap = document.getElementById("photo-preview-wrap");
+    var drop = document.getElementById("photo-drop");
+    if (img) img.src = _pendingPhotoBase64;
+    if (wrap) wrap.style.display = "";
+    if (drop) drop.style.display = "none";
+  };
+  reader.readAsDataURL(file);
+}
+window.removePhoto = function() {
+  _pendingPhotoBase64 = null;
+  _photoRemoved = true;
+  var wrap = document.getElementById("photo-preview-wrap");
+  var drop = document.getElementById("photo-drop");
+  if (wrap) wrap.style.display = "none";
+  if (drop) drop.style.display = "";
+};
+
+window.doSave=async function(existingId){
+  var name=document.getElementById("f-name").value.trim();
+  if(!name){alert("Bitte einen Rezeptnamen eingeben.");return;}
+  var ings=[];document.querySelectorAll("[data-ing]").forEach(function(row){ings.push({id:row.dataset.ing,amount:row.querySelector('[data-f="amount"]').value.trim(),unit:row.querySelector('[data-f="unit"]').value,name:row.querySelector('[data-f="name"]').value.trim()});});
+  var steps=[];document.querySelectorAll("[data-step]").forEach(function(row){steps.push({id:row.dataset.step,text:row.querySelector('[data-f="text"]').value.trim()});});
+  var existing=existingId?S.recipes.find(function(r){return r.id===existingId;}):null;
+  var existing = existingId ? S.recipes.find(function(r){return r.id===existingId;}) : null;
+  var existingTags = existing ? (existing.tags||[]) : [];
+  var photo = _photoRemoved ? null : (_pendingPhotoBase64 || (existing && existing.photo ? existing.photo : null));
+  var recipe={id:existingId||null,name:name,description:document.getElementById("f-desc").value.trim(),servings:document.getElementById("f-srv").value,prepTime:document.getElementById("f-time").value.trim(),ingredients:ings,steps:steps,tags:existingTags,photo:photo};
+  if(existing){recipe.createdBy=existing.createdBy;recipe.createdByName=existing.createdByName;}
+  // Auto-categorize if no tags yet
+  if (!recipe.tags || recipe.tags.length === 0) {
+    var tags = await autoCategorizRecipe(recipe);
+    if (tags.length > 0) recipe.tags = tags;
+  }
+  // Nährwerte einmalig berechnen und im Rezept speichern
+  try {
+    var nutIngs = ings.filter(function(i){return i.name;}).map(function(i){return {name:i.name,amount:i.amount,unit:i.unit};});
+    if (nutIngs.length > 0) {
+      var nutRes = await fetch("/api/nutrition", {
+        method: "POST", headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ingredients: nutIngs, servings: recipe.servings || 1})
+      });
+      var nutData = await nutRes.json();
+      if (nutRes.ok && nutData.total) {
+        recipe.nutrition = { total: nutData.total, baseServings: parseInt(recipe.servings)||1 };
+      }
+    }
+  } catch(e) { /* Nährwerte konnten nicht berechnet werden, Rezept trotzdem speichern */ }
+  await fbSaveRecipe(recipe);
+  var changed=false;
+  DAYS.forEach(function(day){
+    if(!S.weekPlan[day])return;
+    var entry=S.weekPlan[day];
+    var r=entry.recipe||entry;
+    if(r.id===existingId){S.weekPlan[day]=Object.assign({},entry,{recipe:recipe});changed=true;}
+  });
+  if(changed)await fbSaveWeek();
+  _pendingPhotoBase64=null;_photoRemoved=false;
+  toast(existingId?"Rezept aktualisiert \u2713":"Rezept gespeichert \u2713");
+  S.view="list";S.editing=null;render();
+};
+window.doCopyWeek=function(){navigator.clipboard.writeText(weekExportText()).then(function(){toast("Kopiert! \u2713");});};
+window.doDlWeek=function(){dlTxt("Wocheneinkaufsliste.txt",weekExportText());};
+window.doCopyShopping=function(){navigator.clipboard.writeText(shopExportText()).then(function(){toast("Kopiert! \u2713");});};
+window.doDlShopping=function(){dlTxt("Einkaufsliste.txt",shopExportText());};
+window.doCopyDetail=function(){
+  var r=S.viewing;if(!r)return;
+  var ings=(r.ingredients||[]).filter(function(i){return i.name;});
+  var txt=["Einkaufsliste: "+r.name,""].concat(ings.map(function(i){return "- "+fmtIng(i);})).join("\n");
+  navigator.clipboard.writeText(txt).then(function(){toast("Kopiert! \u2713");});
+};
+window.doDlDetail=function(){
+  var r=S.viewing;if(!r)return;
+  var ings=(r.ingredients||[]).filter(function(i){return i.name;});
+  var txt=["Einkaufsliste: "+r.name,""].concat(ings.map(function(i){return "- "+fmtIng(i);})).join("\n");
+  dlTxt("Einkaufsliste_"+r.name.replace(/\s+/g,"_")+".txt",txt);
+};
+window.doDetailToWeek=function(){if(!S.viewing)return;S._pendingPortions=S.scaledPortions||parseInt(S.viewing.servings)||1;openDayModal(S.viewing.id);};
+window.toggleShopI=function(key){
+  S.shopChecked[key]=!S.shopChecked[key];
+  fbSaveShopChecked();
+  // Update just the clicked item visually
+  var ings = mergeWeekIngredients();
+  var ing = ings.find(function(i){ return (i.name+"__"+(i.unit||""))===key; });
+  var done = !!S.shopChecked[key];
+  // Find and update the div
+  var allDivs = document.querySelectorAll('.shop-item');
+  allDivs.forEach(function(div) {
+    if (div.getAttribute('data-key') === key) {
+      div.className = 'shop-item' + (done?' done':'');
+      var chk = div.querySelector('.chk');
+      if (chk) { chk.className='chk'+(done?' on':''); chk.innerHTML=done?svg(I.check,11):''; }
+    }
+  });
+  // Full re-render to be safe
+  if (S.tab==='shopping') renderOnly();
+};
+window.toggleWineItem=function(idx){if(S.wineList[idx])S.wineList[idx].done=!S.wineList[idx].done;fbSaveWineList();renderOnly();};
+window.removeWineItem=function(idx){S.wineList.splice(idx,1);fbSaveWineList();renderOnly();};
+window.clearWineList=function(){S.wineList=[];fbSaveWineList();renderOnly();};
+
+// Read tab from URL on page load
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var urlTab = params.get("tab");
+  if (urlTab && ["recipes","week","shopping"].indexOf(urlTab) >= 0) {
+    S.tab = urlTab;
+  }
+})();
+// ── Dark Mode ──────────────────────────────────────────────────────────────
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  localStorage.setItem('rezeptbuch_theme',t);
+  var b=document.getElementById('theme-toggle-btn');
+  if(b) b.innerHTML = t==='dark' ? '&#9728;&#65039; Light Mode' : '&#127769; Dark Mode';
+}
+window.toggleTheme = function(){
+  var cur = document.documentElement.getAttribute('data-theme')||'light';
+  applyTheme(cur==='dark'?'light':'dark');
+  var dd=document.getElementById('user-dropdown'); if(dd) dd.classList.remove('open');
+};
+// Apply on load
+(function(){
+  var s = localStorage.getItem('rezeptbuch_theme') ||
+    (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-theme', s);
+})();
+
+history.replaceState({tab:S.tab,view:"list",viewingId:null},"","?tab="+S.tab);
+</script>
+</body>
 </html>
