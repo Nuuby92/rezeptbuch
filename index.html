@@ -1903,43 +1903,19 @@ async function loadWeekSuggestions(key) {
 ");
 
   try {
-    var res = await fetch("https://api.anthropic.com/v1/messages", {
+    var res = await fetch("/api/suggest", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 300,
-        messages: [{
-          role: "user",
-          content: "Ich plane eine Woche Essen. Bisher eingeplant:
-" + plannedText
-            + "
-
-Ich suche jetzt ein Rezept für: " + day + " " + meal
-            + "
-
-Verfügbare Rezepte (ID|Name|Tags):
-" + availableText
-            + "
-
-Wähle die 3 besten Rezepte aus die für Abwechslung sorgen (nicht zu viel vom gleichen: kein Pasta auf Pasta, Proteinquellen wechseln, etc.). Antworte NUR mit JSON:
-[{"id":"...","reason":"Kurze Begründung auf Deutsch (max 8 Worte)"}]"
-        }]
-      })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ planned: planned, available: available.slice(0,30), day: day, meal: meal })
     });
     var data = await res.json();
-    var raw = data.content[0].text.trim().replace(/^```json?\s*/i,"").replace(/```\s*$/i,"").trim();
-    var suggestions = JSON.parse(raw);
-    if (Array.isArray(suggestions)) {
+    var suggestions = data.suggestions || [];
+    if (Array.isArray(suggestions) && suggestions.length > 0) {
       _weekSuggestions = suggestions.filter(function(s){
         return s.id && S.recipes.find(function(r){ return r.id === s.id; });
       });
-      // Modal aktualisieren falls noch offen
       var searchVal = document.getElementById("modal-search");
-      renderModalList(searchVal ? searchVal.value : "");
+      if (searchVal) renderModalList(searchVal.value || "");
     }
   } catch(e) { /* Vorschläge konnten nicht geladen werden */ }
 }
