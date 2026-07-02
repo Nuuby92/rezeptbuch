@@ -1923,73 +1923,120 @@ async function loadWeekSuggestions(key) {
 // Mapping Mahlzeit → passende Tags
 var MEAL_TAG_MAP = {
   "Frühstück":  ["Frühstück"],
-  "Mittagessen": ["Hauptgericht", "Suppe/Eintopf", "Salat", "Bowl"],
-  "Abendessen":  ["Hauptgericht", "Suppe/Eintopf", "Pasta/Nudeln", "Reis/Getreide", "Curry", "Pfannengericht", "Pizza"],
+  "Mittagessen": ["Hauptgericht","Suppe/Eintopf","Salat","Bowl"],
+  "Abendessen":  ["Hauptgericht","Suppe/Eintopf","Pasta/Nudeln","Reis/Getreide","Curry","Pfannengericht","Pizza"],
 };
 
-function renderModalList(q){
-  var list=S.recipes.filter(function(r){return r.name.toLowerCase().indexOf(q.toLowerCase())>=0;});
-  var el=document.getElementById("modal-list");if(!el)return;
-  if(list.length===0){el.innerHTML='<p style="color:var(--text-muted);font-size:14px;text-align:center;padding:20px">Keine Rezepte gefunden.</p>';return;}
+var _weekSuggestions = [];
+
+async function loadWeekSuggestions(key) {
+  _weekSuggestions = [];
+  var parts = key.split("__");
+  var day = parts[0];
+  var meal = parts[1] || "";
+
+  var planned = [];
+  DAYS.forEach(function(d) {
+    MEALS.forEach(function(m) {
+      var entry = S.weekPlan[d+"__"+m];
+      if (!entry) return;
+      var r = entry.recipe || entry;
+      planned.push({day:d, meal:m, name:r.name, tags:r.tags||[]});
+    });
+  });
+
+  if (planned.length === 0 || S.recipes.length === 0) return;
+
+  var usedNames = planned.map(function(p){ return p.name; });
+  var available = S.recipes.filter(function(r){ return usedNames.indexOf(r.name) < 0; });
+  if (available.length === 0) available = S.recipes.slice();
+
+  try {
+    var res = await fetch("/api/suggest", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({planned:planned, available:available.slice(0,30).map(function(r){return {id:r.id,name:r.name,tags:r.tags||[]};}), day:day, meal:meal})
+    });
+    var data = await res.json();
+    var suggestions = data.suggestions || [];
+    if (Array.isArray(suggestions) && suggestions.length > 0) {
+      _weekSuggestions = suggestions.filter(function(s){
+        return s.id && S.recipes.find(function(r){ return r.id === s.id; });
+      });
+      var searchEl = document.getElementById("modal-search");
+      if (searchEl) renderModalList(searchEl.value || "");
+    }
+  } catch(e) {}
+}
+
+window.filterModal = function(q){ renderModalList(q); };
+
+function renderModalList(q) {
+  var el = document.getElementById("modal-list");
+  if (!el) return;
+  var lq = q.toLowerCase();
+  var list = S.recipes.filter(function(r){ return r.name.toLowerCase().indexOf(lq) >= 0; });
+  if (list.length === 0) {
+    el.innerHTML = '<p style="color:var(--text-muted);font-size:14px;text-align:center;padding:20px">Keine Rezepte gefunden.</p>';
+    return;
+  }
 
   var mealKey = S.modalDay ? S.modalDay.split("__")[1] : null;
   var matchTags = mealKey ? (MEAL_TAG_MAP[mealKey] || []) : [];
 
   function recipeBtn(r, reason) {
-    return '<button class="modal-opt" onclick="assignWeek(\''+r.id+'\')">'
-      + esc(r.name)
-      + (reason ? '<span style="font-size:11px;color:var(--green-dark);font-weight:500">'+esc(reason)+'</span>' : (r.prepTime?'<span style="font-size:12px;color:var(--text-muted)">'+esc(r.prepTime)+'</span>':""))
-      + '</button>';
+    var timeSpan = r.prepTime ? '<span style="font-size:12px;color:var(--text-muted)">'+esc(r.prepTime)+'</span>' : '';
+    var reasonSpan = reason ? '<span style="font-size:11px;color:var(--green-dark);font-weight:500">'+esc(reason)+'</span>' : timeSpan;
+    return '<button class="modal-opt" onclick="assignWeek(\''+r.id+'\')">'+esc(r.name)+reasonSpan+'</button>';
   }
 
-  var html = "";
   var usedIds = {};
+  var html = "";
 
-  // Section 1: KI-Vorschläge (falls vorhanden)
+  // Section 1: KI-Vorschläge
   if (_weekSuggestions.length > 0) {
-    var suggestionRecipes = _weekSuggestions
-      .map(function(s){ return { recipe: S.recipes.find(function(r){ return r.id===s.id; }), reason: s.reason }; })
-      .filter(function(s){ return s.recipe && s.recipe.name.toLowerCase().indexOf(q.toLowerCase()) >= 0; });
-
-    if (suggestionRecipes.length > 0) {
-      html += '<div style="font-size:10px;font-weight:800;color:#7C3AED;text-transform:uppercase;letter-spacing:1px;padding:6px 4px 4px">&#10024; KI-Vorschläge für Abwechslung</div>';
-      suggestionRecipes.forEach(function(s){
-        html += recipeBtn(s.recipe, s.reason);
-        usedIds[s.recipe.id] = true;
+    var shown = _weekSuggestions.filter(function(s){
+      var r = S.recipes.find(function(x){ return x.id === s.id; });
+      return r && r.name.toLowerCase().indexOf(lq) >= 0;
+    });
+    if (shown.length > 0) {
+      html += '<div style="font-size:10px;font-weight:800;color:#7C3AED;text-transform:uppercase;letter-spacing:1px;padding:6px 4px 4px">&#10024; KI-Vorschläge</div>';
+      shown.forEach(function(s) {
+        var r = S.recipes.find(function(x){ return x.id === s.id; });
+        if (r) { html += recipeBtn(r, s.reason); usedIds[r.id] = true; }
       });
       html += '<div style="height:1px;background:var(--border);margin:8px 0"></div>';
     }
   } else if (Object.keys(S.weekPlan).length > 0) {
-    // Noch laden
-    html += '<div style="font-size:12px;color:var(--text-muted);padding:6px 4px;display:flex;align-items:center;gap:6px"><div class="spinner spinner-sm"></div> Vorschläge werden berechnet…</div>';
+    html += '<div style="font-size:12px;color:var(--text-muted);padding:6px 4px;display:flex;align-items:center;gap:6px"><div class="spinner spinner-sm"></div> Vorschläge werden berechnet\u2026</div>';
     html += '<div style="height:1px;background:var(--border);margin:8px 0"></div>';
   }
 
-  // Section 2: Passende Rezepte (nach Mahlzeit)
+  // Section 2: Passende Rezepte nach Mahlzeit
   var matching = list.filter(function(r){
-    if(usedIds[r.id]) return false;
-    var rTags = r.tags || [];
-    return matchTags.length > 0 && matchTags.some(function(t){ return rTags.indexOf(t) >= 0; });
+    if (usedIds[r.id]) return false;
+    var t = r.tags || [];
+    return matchTags.length > 0 && matchTags.some(function(tag){ return t.indexOf(tag) >= 0; });
   });
   var others = list.filter(function(r){
-    if(usedIds[r.id]) return false;
-    var rTags = r.tags || [];
-    return !(matchTags.length > 0 && matchTags.some(function(t){ return rTags.indexOf(t) >= 0; }));
+    if (usedIds[r.id]) return false;
+    var t = r.tags || [];
+    return !(matchTags.length > 0 && matchTags.some(function(tag){ return t.indexOf(tag) >= 0; }));
   });
 
-  if(matching.length > 0) {
-    html += '<div style="font-size:10px;font-weight:800;color:var(--green-darkest);text-transform:uppercase;letter-spacing:1px;padding:6px 4px 4px">' + (mealKey||"Alle") + ' – Passend ('+matching.length+')</div>';
+  if (matching.length > 0) {
+    html += '<div style="font-size:10px;font-weight:800;color:var(--green-darkest);text-transform:uppercase;letter-spacing:1px;padding:6px 4px 4px">'+(mealKey||"Passend")+' ('+matching.length+')</div>';
     matching.forEach(function(r){ html += recipeBtn(r, null); });
   }
-
-  if(others.length > 0) {
-    if(matching.length > 0) html += '<div style="height:1px;background:var(--border);margin:8px 0"></div>';
-    html += '<div style="font-size:10px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;padding:4px 4px">Alle anderen ('+others.length+')</div>';
+  if (others.length > 0) {
+    if (matching.length > 0) html += '<div style="height:1px;background:var(--border);margin:8px 0"></div>';
+    html += '<div style="font-size:10px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;padding:4px">Alle anderen ('+others.length+')</div>';
     others.forEach(function(r){ html += recipeBtn(r, null); });
   }
 
-  el.innerHTML=html;
+  el.innerHTML = html;
 }
+
 window.closeModal=function(){document.getElementById("modal").classList.remove("open");_weekSuggestions=[];};
 window.onModalBgClick=function(e){if(e.target===document.getElementById("modal"))window.closeModal();};
 
