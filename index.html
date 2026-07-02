@@ -1860,12 +1860,53 @@ function openDayModal(recipeId){
 }
 
 window.filterModal=function(q){renderModalList(q);};
+
+// Mapping Mahlzeit → passende Tags
+var MEAL_TAG_MAP = {
+  "Frühstück":  ["Frühstück"],
+  "Mittagessen": ["Hauptgericht", "Suppe/Eintopf", "Salat", "Bowl"],
+  "Abendessen":  ["Hauptgericht", "Suppe/Eintopf", "Pasta/Nudeln", "Reis/Getreide", "Curry", "Pfannengericht", "Pizza"],
+};
+
 function renderModalList(q){
   var list=S.recipes.filter(function(r){return r.name.toLowerCase().indexOf(q.toLowerCase())>=0;});
   var el=document.getElementById("modal-list");if(!el)return;
   if(list.length===0){el.innerHTML='<p style="color:var(--text-muted);font-size:14px;text-align:center;padding:20px">Keine Rezepte gefunden.</p>';return;}
-  var html="";
-  list.forEach(function(r){html+='<button class="modal-opt" onclick="assignWeek(\''+r.id+'\')">'+esc(r.name)+(r.prepTime?'<span style="font-size:12px;color:var(--text-muted)">'+esc(r.prepTime)+'</span>':"")+'</button>';});
+
+  // Split by meal relevance if a meal is selected
+  var mealKey = S.modalDay ? S.modalDay.split("__")[1] : null;
+  var matchTags = mealKey ? (MEAL_TAG_MAP[mealKey] || []) : [];
+
+  var matching = [];
+  var others = [];
+
+  list.forEach(function(r){
+    var rTags = r.tags || [];
+    var isMatch = matchTags.length > 0 && matchTags.some(function(t){ return rTags.indexOf(t) >= 0; });
+    if(isMatch) matching.push(r);
+    else others.push(r);
+  });
+
+  function recipeBtn(r) {
+    return '<button class="modal-opt" onclick="assignWeek(\''+r.id+'\')">'
+      +esc(r.name)
+      +(r.prepTime?'<span style="font-size:12px;color:var(--text-muted)">'+esc(r.prepTime)+'</span>':"")
+      +'</button>';
+  }
+
+  var html = "";
+
+  if(matching.length > 0 && others.length > 0) {
+    // Show section header for matching
+    html += '<div style="font-size:10px;font-weight:800;color:var(--green-darkest);text-transform:uppercase;letter-spacing:1px;padding:6px 4px 4px">' + (mealKey||"") + ' – Passende Rezepte ('+matching.length+')</div>';
+    matching.forEach(function(r){ html += recipeBtn(r); });
+    html += '<div style="height:1px;background:var(--border);margin:8px 0"></div>';
+    html += '<div style="font-size:10px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;padding:4px 4px">' + "Alle anderen (" + others.length + ")</div>";
+    others.forEach(function(r){ html += recipeBtn(r); });
+  } else {
+    list.forEach(function(r){ html += recipeBtn(r); });
+  }
+
   el.innerHTML=html;
 }
 window.closeModal=function(){document.getElementById("modal").classList.remove("open");};
