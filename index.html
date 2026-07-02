@@ -519,22 +519,6 @@ document.addEventListener("click", function(e) {
     dd.classList.remove("open");
   }
 });
-// Theme
-function applyTheme(t){
-  document.documentElement.setAttribute('data-theme',t);
-  localStorage.setItem('theme',t);
-  var b=document.getElementById('theme-toggle-btn');
-  if(b) b.innerHTML=t==='dark'?'&#9728;&#65039; Light Mode':'&#127769; Dark Mode';
-}
-window.toggleTheme=function(){
-  applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');
-  var dd=document.getElementById('user-dropdown');if(dd)dd.classList.remove('open');
-};
-(function(){
-  var s=localStorage.getItem('theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
-  applyTheme(s);
-})();
-
 window.confirmLogout = function() {
   if (confirm("Wirklich abmelden?")) window.doLogout();
 };
@@ -550,22 +534,6 @@ document.addEventListener("click", function(e) {
     dd.classList.remove("open");
   }
 });
-// Theme
-function applyTheme(t){
-  document.documentElement.setAttribute('data-theme',t);
-  localStorage.setItem('theme',t);
-  var b=document.getElementById('theme-toggle-btn');
-  if(b) b.innerHTML=t==='dark'?'&#9728;&#65039; Light Mode':'&#127769; Dark Mode';
-}
-window.toggleTheme=function(){
-  applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');
-  var dd=document.getElementById('user-dropdown');if(dd)dd.classList.remove('open');
-};
-(function(){
-  var s=localStorage.getItem('theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
-  applyTheme(s);
-})();
-
 window.confirmLogout = function() {
   if (confirm("Wirklich abmelden?")) window.doLogout();
 };
@@ -1597,9 +1565,7 @@ function tplList(){
       var ings=(r.ingredients||[]).filter(function(i){return i.name;}).length;
       var owner=isOwner(r);
       var thumb = r.photo ? '<img src="'+r.photo+'" style="width:64px;height:64px;border-radius:10px;object-fit:cover;flex-shrink:0" />' : '';
-      var aC={'Fleisch':'#EF4444','Geflugel':'#F97316','Fisch':'#3B82F6','Vegetarisch':'#22C55E','Vegan':'#10B981','Dessert':'#EC4899','Fruhstuck':'#F59E0B'};
-      var acC='#22C55E';(r.tags||[]).forEach(function(t){if(aC[t])acC=aC[t];});
-      cards+='<div class="card recipe-card" onclick="doView(\''+r.id+'\')"><div style="display:flex;align-items:stretch"><div style="width:4px;flex-shrink:0;background:'+acC+';border-radius:4px 0 0 4px;transition:width .2s"></div><div style="padding:16px 18px;flex:1;min-width:0"><div class="recipe-card-top">'
+      cards+='<div class="card recipe-card" onclick="doView(\''+r.id+'\')"><div class="recipe-card-top">'
         +thumb
         +'<div class="recipe-card-body">'
         +'<div class="recipe-name">'+esc(r.name)+'</div>'
@@ -1614,7 +1580,7 @@ function tplList(){
         +'<div class="card-actions" onclick="event.stopPropagation()">'
         +(owner?'<button class="btn btn-ghost btn-icon" onclick="doEdit(\''+r.id+'\')" title="Bearbeiten">'+svg(I.edit)+'</button>':'')
         +(owner?'<button class="btn btn-danger btn-icon" onclick="doDelete(\''+r.id+'\')" title="L&ouml;schen">'+svg(I.trash)+'</button>':'<span title="Nur der Ersteller kann dieses Rezept bearbeiten" style="padding:6px;color:var(--text-muted)">'+svg(I.lock,15)+'</span>')
-        +'</div></div></div></div>';
+        +'</div></div></div>';
     });
   }
   var hasFilters = S.activeFilters.length > 0;
@@ -2315,7 +2281,25 @@ window.clearWineList=function(){S.wineList=[];fbSaveWineList();renderOnly();};
     S.tab = urlTab;
   }
 })();
-applyTheme(localStorage.getItem('theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));
+// ── Dark Mode ──────────────────────────────────────────────────────────────
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  localStorage.setItem('rezeptbuch_theme',t);
+  var b=document.getElementById('theme-toggle-btn');
+  if(b) b.innerHTML = t==='dark' ? '&#9728;&#65039; Light Mode' : '&#127769; Dark Mode';
+}
+window.toggleTheme = function(){
+  var cur = document.documentElement.getAttribute('data-theme')||'light';
+  applyTheme(cur==='dark'?'light':'dark');
+  var dd=document.getElementById('user-dropdown'); if(dd) dd.classList.remove('open');
+};
+// Apply on load
+(function(){
+  var s = localStorage.getItem('rezeptbuch_theme') ||
+    (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-theme', s);
+})();
+
 history.replaceState({tab:S.tab,view:"list",viewingId:null},"","?tab="+S.tab);
 </script>
 </body>
