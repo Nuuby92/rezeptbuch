@@ -2301,9 +2301,6 @@ window.toggleTheme = function(){
   document.documentElement.setAttribute('data-theme', s);
 })();
 
-function applyTheme(t){document.documentElement.setAttribute('data-theme',t);localStorage.setItem('rbt',t);var b=document.getElementById('theme-btn');if(b)b.innerHTML=t==='dark'?'&#9728; Light':'&#127769; Dark';}
-window.toggleTheme=function(){applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');var d=document.getElementById('user-dropdown');if(d)d.classList.remove('open');};
-(function(){applyTheme(localStorage.getItem('rbt')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'));})();
 
 history.replaceState({tab:S.tab,view:"list",viewingId:null},"","?tab="+S.tab);
 </script>
