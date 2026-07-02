@@ -1285,18 +1285,18 @@ function detectAllergens(ingredients) {
 function allergenBoxHtml(ingredients) {
   var allergens = detectAllergens(ingredients);
   if (allergens.length === 0) {
-    return '<div style="margin-top:24px;padding:14px 16px;background:#F0FDF4;border-radius:12px;border:1px solid #BBF7D0">'
-      +'<p style="font-size:12px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Allergene</p>'
-      +'<p style="font-size:13px;color:#15803D">&#10003; Keine der 14 EU-Hauptallergene erkannt</p>'
+    return '<div style="margin-top:24px;padding:14px 16px;background:var(--accent-faint);border-radius:12px;border:1px solid var(--accent-light)">'
+      +'<p style="font-size:12px;font-weight:700;color:var(--accent-dark);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Allergene</p>'
+      +'<p style="font-size:13px;color:var(--accent)">&#10003; Keine der 14 EU-Hauptallergene erkannt</p>'
       +'<p style="font-size:11px;color:#6B7280;margin-top:4px">Angaben ohne Gewähr – bitte Zutaten selbst prüfen.</p>'
       +'</div>';
   }
   var tags = allergens.map(function(a){
-    return '<span style="display:inline-flex;align-items:center;gap:4px;background:#FEF9C3;border:1px solid #FDE047;border-radius:20px;padding:4px 10px;font-size:12px;font-weight:600;color:#713F12">'
+    return '<span style="display:inline-flex;align-items:center;gap:4px;background:var(--surface);border:1px solid var(--border-2);border-radius:20px;padding:4px 10px;font-size:12px;font-weight:600;color:var(--text-2)">'
       +a.icon+' '+a.name+'</span>';
   }).join("");
-  return '<div style="margin-top:24px;padding:14px 16px;background:#FFFBEB;border-radius:12px;border:1px solid #FDE047">'
-    +'<p style="font-size:12px;font-weight:700;color:#92400E;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">&#9888; Enthält Allergene</p>'
+  return '<div style="margin-top:24px;padding:14px 16px;background:var(--surface-2);border-radius:12px;border:1px solid var(--border)">'
+    +'<p style="font-size:12px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">&#9888; Enthält Allergene</p>'
     +'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">'+tags+'</div>'
     +'<p style="font-size:11px;color:#6B7280">Basierend auf den 14 EU-Hauptallergenen. Angaben ohne Gewähr.</p>'
     +'</div>';
@@ -1662,7 +1662,7 @@ function tplDetail(){
     +'<button class="btn btn-bring" onclick="openBringModal('+esc(bringItems)+')">&#127819; Nach Bring</button>'
     +'<button class="btn btn-secondary" onclick="doDetailToWeek()">'+svg(I.cal)+' Zum Wochenplan</button>'
     +'</div>'
-    +'<div class="wine-box" style="margin-bottom:16px"><div id="wine-box"><button class="btn" style="background:#FAF5FF;color:#7C3AED;border:1.5px solid #E9D5FF" onclick="loadWineRecommendation()">&#127863; Weinempfehlung anzeigen</button></div></div>'
+    +'<div class="wine-box" style="margin-bottom:16px"><div id="wine-box"><button class="btn" style="background:var(--surface-2);color:var(--text-2);border:1.5px solid var(--border)" onclick="loadWineRecommendation()">&#127863; Weinempfehlung anzeigen</button></div></div>'
     +allergenBoxHtml(ings)
     +'</div>';
 }
