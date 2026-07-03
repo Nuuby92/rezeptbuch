@@ -2334,7 +2334,16 @@ window.debouncedSearch=function(q){
 // ── Batch categorize all recipes ──────────────────────────────────────────
 
 window.doEdit=function(id){S.editing=S.recipes.find(function(r){return r.id===id;});S.view="form";render();};
-window.goToRecipe = function(id) { S.tab = 'recipes'; window.doView(id); };
+window.goToRecipe = function(id) {
+  var found = S.recipes.find(function(r){ return r.id === id; });
+  if (!found) { toast('Rezept konnte nicht gefunden werden.'); return; }
+  S.tab = 'recipes';
+  S.viewing = found;
+  S.nutrition = null;
+  S.scaledPortions = null;
+  S.view = 'detail';
+  render();
+};
 window.doView=function(id){S.viewing=S.recipes.find(function(r){return r.id===id;});S.nutrition=null;S.scaledPortions=null;S.view="detail";render();};
 window.doDelete=async function(id){
   var r=S.recipes.find(function(x){return x.id===id;});
