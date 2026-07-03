@@ -1062,7 +1062,7 @@ function wcResultHtml() {
       + '</div>'
       + ((rec.tags&&rec.tags.length)?'<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:20px">'+rec.tags.map(function(t){return tagHtml(t,false,false);}).join('')+'</div>':'')
       + '<div style="display:flex;gap:10px">'
-      + '<button class="btn btn-primary" onclick="S.tab=\'recipes\';doView(\''+rec.id+'\')">Rezept ansehen</button>'
+      + '<button class="btn btn-primary" onclick="goToRecipe(\'+rec.id+\')">Rezept ansehen</button>'
       + '<button class="btn btn-secondary" onclick="suggestFromRecipes()">&#8635; Anderer Vorschlag</button>'
       + '</div></div>';
   }
@@ -2334,6 +2334,7 @@ window.debouncedSearch=function(q){
 // ── Batch categorize all recipes ──────────────────────────────────────────
 
 window.doEdit=function(id){S.editing=S.recipes.find(function(r){return r.id===id;});S.view="form";render();};
+window.goToRecipe = function(id) { S.tab = 'recipes'; window.doView(id); };
 window.doView=function(id){S.viewing=S.recipes.find(function(r){return r.id===id;});S.nutrition=null;S.scaledPortions=null;S.view="detail";render();};
 window.doDelete=async function(id){
   var r=S.recipes.find(function(x){return x.id===id;});
