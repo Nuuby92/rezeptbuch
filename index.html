@@ -1152,6 +1152,36 @@ window.saveWcAiRecipe = async function() {
   render();
 };
 
+
+// ── Zutaten-Sortierung ──────────────────────────────────────────────────────
+var ING_CATEGORY_ORDER = [
+  { name: "hauptzutat", keywords: ["hähnchen","huhn","rind","schwein","lamm","ente","pute","hackfleisch","fleisch","fisch","lachs","garnelen","shrimp","tofu","halloumi","speck","bacon","wurst"], priority: 1 },
+  { name: "gemüse_obst", keywords: ["zwiebel","knoblauch","tomate","paprika","karotte","möhre","kartoffel","zucchini","aubergine","pilz","champignon","brokkoli","spinat","salat","gurke","apfel","zitrone","limette","ingwer","chili","sellerie","lauch","kohl","erbsen","bohnen"], priority: 2 },
+  { name: "grundzutat", keywords: ["mehl","reis","nudeln","pasta","couscous","quinoa","haferflocken","brot","ei","eier","käse","milch","sahne","joghurt","quark","butter","zucker","honig"], priority: 3 },
+  { name: "flüssigkeit_öl", keywords: ["öl","brühe","wasser","wein","essig","sojasauce","fischsauce"], priority: 4 },
+  { name: "gewürz", keywords: ["salz","pfeffer","paprikapulver","kreuzkümmel","curry","muskat","zimt","oregano","basilikum","thymian","rosmarin","petersilie","kräuter","gewürz","chiliflocken","currypulver","senf","gochujang","sriracha","sesam","kümmel","koriander","natron","backpulver","hefe","vanille","essig","sirup","sauce","soße","paste","ketchup"], priority: 5 }
+];
+
+function ingredientPriority(name) {
+  var n = (name||"").toLowerCase();
+  for (var i = 0; i < ING_CATEGORY_ORDER.length; i++) {
+    var cat = ING_CATEGORY_ORDER[i];
+    for (var j = 0; j < cat.keywords.length; j++) {
+      if (n.indexOf(cat.keywords[j]) >= 0) return cat.priority;
+    }
+  }
+  return 3; // Standard: wie Grundzutat einsortieren wenn unbekannt
+}
+
+function sortIngredientsForDisplay(ingredients) {
+  return ingredients.slice().sort(function(a, b) {
+    var pa = ingredientPriority(a.name);
+    var pb = ingredientPriority(b.name);
+    if (pa !== pb) return pa - pb;
+    return 0; // gleiche Kategorie: Reihenfolge wie eingegeben beibehalten
+  });
+}
+
 // ── Auto-categorize ────────────────────────────────────────────────────────
 var TAG_COLORS = {
   "Hauptgericht":"tag-meal","Beilage":"tag-meal","Frühstück":"tag-meal","Snack":"tag-meal","Dessert":"tag-meal","Getränk":"tag-meal",
@@ -1841,7 +1871,7 @@ function tplList(){
 
 function tplDetail(){
   var r=S.viewing; if(!r) return "";
-  var ings=(r.ingredients||[]).filter(function(i){return i.name;});
+  var ings=sortIngredientsForDisplay((r.ingredients||[]).filter(function(i){return i.name;}));
   var steps=(r.steps||[]).filter(function(s){return s.text;});
   var basePortions = parseInt(r.servings)||1;
   var scaledBase = S.scaledPortions || basePortions;
