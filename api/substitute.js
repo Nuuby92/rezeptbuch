@@ -1,5 +1,5 @@
-const { checkRateLimit, truncateInput } = require('./_rateLimit');
-const { verifyAppCheckToken } = require('./_appCheck');
+const { checkRateLimit, truncateInput } = require('./rateLimit');
+const { verifyAppCheckToken } = require('./appCheck');
 
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
