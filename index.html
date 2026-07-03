@@ -451,6 +451,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js";
 import { getFirestore, collection, doc, onSnapshot, addDoc, setDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, updatePassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
@@ -462,6 +463,32 @@ const fbApp = initializeApp({
   messagingSenderId: "324939912260",
   appId: "1:324939912260:web:9e3daf8c3365d6305a5811"
 });
+
+// Firebase App Check - schützt die API vor Bot-Missbrauch
+const appCheck = initializeAppCheck(fbApp, {
+  provider: new ReCaptchaV3Provider("6Lf0BUMtAAAAAEqmg70LPf5S726Rm-q3E6Cr1J7z"),
+  isTokenAutoRefreshEnabled: true
+});
+
+// Hilfsfunktion: holt aktuelles App-Check-Token für Anfragen an eigene API
+async function getAppCheckToken() {
+  try {
+    const { getToken } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js");
+    const result = await getToken(appCheck, false);
+    return result.token;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Zentrale Funktion für alle Aufrufe an eigene /api/-Endpunkte - hängt automatisch App-Check-Token an
+async function apiPost(endpoint, body) {
+  const token = await getAppCheckToken();
+  const headers = { "Content-Type": "application/json" };
+  if (token) headers["X-Firebase-AppCheck"] = token;
+  return fetch(endpoint, { method: "POST", headers: headers, body: JSON.stringify(body) });
+}
+window.apiPost = apiPost;
 const db = getFirestore(fbApp);
 const auth = getAuth(fbApp);
 
@@ -941,7 +968,7 @@ window.submitImport=async function(){
     else if(importTab==="url"){body.url=url;}
     else{body.text=text;}
     body.uid=S.user.uid;
-    var res=await fetch("/api/import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    var res=await apiPost("/api/import", body);
     var data=await res.json();
     if(!res.ok){statusEl.textContent=data.error||"Fehler.";statusEl.style.color="var(--danger)";btn.disabled=false;return;}
     S.editing=data.recipe;S.view="form";
@@ -1125,11 +1152,7 @@ window.suggestFromAI = async function() {
   S.wcAiLoading = true;
   renderOnly();
   try {
-    var res = await fetch('/api/whatcook', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ haveIngredients: S.wcHaveIngredients, filters: S.wcFilters, uid: S.user.uid })
-    });
+    var res = await apiPost('/api/whatcook', { haveIngredients: S.wcHaveIngredients, filters: S.wcFilters, uid: S.user.uid });
     var data = await res.json();
     if (res.ok && data.recipe) {
       S.wcAiResult = data.recipe;
@@ -1200,11 +1223,7 @@ function tagClass(tag) { return "tag " + (TAG_COLORS[tag] || "tag-meal"); }
 
 async function autoCategorizRecipe(recipe) {
   try {
-    var res = await fetch("/api/categorize", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: recipe.name, description: recipe.description, ingredients: recipe.ingredients, uid: S.user.uid }),
-    });
+    var res = await apiPost("/api/categorize", { name: recipe.name, description: recipe.description, ingredients: recipe.ingredients, uid: S.user.uid });
     var data = await res.json();
     return data.tags || [];
   } catch(e) { return []; }
@@ -1408,11 +1427,7 @@ window.openSubModal = async function(ingredient, amount, unit, recipeName, other
   cnt.innerHTML = '<div style="display:flex;align-items:center;gap:8px;color:var(--text-muted);font-size:14px"><div class="spinner spinner-sm"></div> Alternativen werden gesucht…</div>';
   modal.classList.add("open");
   try {
-    var res = await fetch("/api/substitute", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ingredient: ingredient, amount: amount, unit: unit, recipeName: recipeName, recipeIngredients: otherIngs, uid: S.user.uid }),
-    });
+    var res = await apiPost("/api/substitute", { ingredient: ingredient, amount: amount, unit: unit, recipeName: recipeName, recipeIngredients: otherIngs, uid: S.user.uid });
     var data = await res.json();
     if (!res.ok || !data.alternatives) {
       cnt.innerHTML = '<p style="color:var(--danger);font-size:14px">' + esc(data.error||"Fehler.") + '</p>';
@@ -1564,11 +1579,7 @@ async function fetchNutritionForRecipe(recipe, portions) {
     .map(function(i){ return { name: i.name, amount: i.amount, unit: i.unit }; });
   if (ings.length === 0) return null;
   try {
-    var res = await fetch("/api/nutrition", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ingredients: ings, servings: base, uid: S.user.uid })
-    });
+    var res = await apiPost("/api/nutrition", { ingredients: ings, servings: base, uid: S.user.uid });
     var data = await res.json();
     if (!res.ok || !data.perServing) return null;
     // Scale to requested portions then divide by portions = per person
@@ -1665,10 +1676,7 @@ window.recalcNutritionNow = async function() {
   S.nutritionLoading = true; S.nutrition = null; renderNutritionBox();
   try {
     var ings = (r.ingredients||[]).filter(function(i){return i.name && i.amount;}).map(function(i){return {name:i.name,amount:i.amount,unit:i.unit};});
-    var res = await fetch("/api/nutrition", {
-      method: "POST", headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({ingredients: ings, servings: r.servings || 1, uid: S.user.uid})
-    });
+    var res = await apiPost("/api/nutrition", {ingredients: ings, servings: r.servings || 1, uid: S.user.uid});
     var data = await res.json();
     if (res.ok && data.total) {
       r.nutrition = { total: data.total, baseServings: parseInt(r.servings)||1 };
@@ -1697,11 +1705,7 @@ window.loadWineRecommendation = async function() {
   el.innerHTML = '<div class="wine-loading"><div class="spinner spinner-sm"></div> Weinempfehlung wird geladen…</div>';
 
   try {
-    var res = await fetch("/api/wine", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: r.name, description: r.description, ingredients: r.ingredients, tags: r.tags, uid: S.user.uid }),
-    });
+    var res = await apiPost("/api/wine", { name: r.name, description: r.description, ingredients: r.ingredients, tags: r.tags, uid: S.user.uid });
     var data = await res.json();
     if (!res.ok || !data.wines) {
       el.innerHTML = '<p style="font-size:13px;color:var(--text-muted)">Keine Empfehlung verfügbar.</p>';
@@ -2194,11 +2198,7 @@ async function loadWeekSuggestions(key) {
   }).join("\n");
 
   try {
-    var res = await fetch("/api/suggest", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ planned: planned, available: available.slice(0,30), day: day, meal: meal, uid: S.user.uid })
-    });
+    var res = await apiPost("/api/suggest", { planned: planned, available: available.slice(0,30), day: day, meal: meal, uid: S.user.uid });
     var data = await res.json();
     var suggestions = data.suggestions || [];
     if (Array.isArray(suggestions) && suggestions.length > 0) {
@@ -2495,10 +2495,7 @@ window.doSave=async function(existingId){
   try {
     var nutIngs = ings.filter(function(i){return i.name;}).map(function(i){return {name:i.name,amount:i.amount,unit:i.unit};});
     if (nutIngs.length > 0) {
-      var nutRes = await fetch("/api/nutrition", {
-        method: "POST", headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({ingredients: nutIngs, servings: recipe.servings || 1, uid: S.user.uid})
-      });
+      var nutRes = await apiPost("/api/nutrition", {ingredients: nutIngs, servings: recipe.servings || 1, uid: S.user.uid});
       var nutData = await nutRes.json();
       if (nutRes.ok && nutData.total) {
         recipe.nutrition = { total: nutData.total, baseServings: parseInt(recipe.servings)||1 };
