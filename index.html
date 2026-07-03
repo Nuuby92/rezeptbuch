@@ -288,6 +288,9 @@
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15z"/></svg>
           <span>Rezepte</span>
         </button>
+        <button class="nav-btn" id="nav-whatcook" onclick="switchTab('whatcook')">
+          <span style="font-size:15px">&#127922;</span><span>Was koche ich?</span>
+        </button>
         <button class="nav-btn" id="nav-week" onclick="switchTab('week')">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           <span>Wochenplan</span>
@@ -295,9 +298,6 @@
         <button class="nav-btn" id="nav-shopping" onclick="switchTab('shopping')">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"/></svg>
           <span>Einkauf</span>
-        </button>
-        <button class="nav-btn" id="nav-whatcook" onclick="switchTab('whatcook')">
-          <span style="font-size:15px">&#127922;</span><span>Was koche ich?</span>
         </button>
       </nav>
       <div class="user-info">
@@ -474,6 +474,7 @@ var S = {
   shopChecked: {},
   activeFilters: [],
   filterOpen: false,
+  sortBy: "newest",
   wcHaveIngredients: [],
   wcFilters: [],
   wcCurrentRecipe: null,
@@ -624,6 +625,7 @@ function initApp() {
 async function fbSaveRecipe(r) {
   var data = Object.assign({}, r);
   var id = data.id; delete data.id;
+  if (!data.createdAt) data.createdAt = Date.now();
   // Bei fremden Rezepten (Admin-Bearbeitung) den ursprünglichen Ersteller behalten
   if (!data.createdBy) {
     data.createdBy = S.user.uid;
@@ -1060,7 +1062,7 @@ function wcResultHtml() {
       + '</div>'
       + ((rec.tags&&rec.tags.length)?'<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:20px">'+rec.tags.map(function(t){return tagHtml(t,false,false);}).join('')+'</div>':'')
       + '<div style="display:flex;gap:10px">'
-      + '<button class="btn btn-primary" onclick="doView(\''+rec.id+'\')">Rezept ansehen</button>'
+      + '<button class="btn btn-primary" onclick="S.tab=\'recipes\';doView(\''+rec.id+'\')">Rezept ansehen</button>'
       + '<button class="btn btn-secondary" onclick="suggestFromRecipes()">&#8635; Anderer Vorschlag</button>'
       + '</div></div>';
   }
@@ -1196,6 +1198,7 @@ window.toggleFilter = function(tag) {
 };
 
 window.clearFilters = function() { S.activeFilters = []; render(); };
+window.setSortBy = function(v) { S.sortBy = v; renderOnly(); };
 window.toggleFilterPanel = function() { S.filterOpen = !S.filterOpen; render(); };
 
 function filterPanel() {
@@ -1781,6 +1784,17 @@ function tplList(){
     }
     return true;
   });
+  // Sortierung
+  list = list.slice();
+  if (S.sortBy === "newest") {
+    list.sort(function(a,b){ return (b.createdAt||0) - (a.createdAt||0); });
+  } else if (S.sortBy === "oldest") {
+    list.sort(function(a,b){ return (a.createdAt||0) - (b.createdAt||0); });
+  } else if (S.sortBy === "az") {
+    list.sort(function(a,b){ return a.name.localeCompare(b.name,"de"); });
+  } else if (S.sortBy === "za") {
+    list.sort(function(a,b){ return b.name.localeCompare(a.name,"de"); });
+  }
   var cards="";
   if(list.length===0){
     cards='<div class="empty"><div class="empty-icon">&#128214;</div><h3>'+(S.search?"Keine Treffer":"Noch keine Rezepte")+'</h3><p>'+(S.search?"Anderen Begriff versuchen.":"F&uuml;ge dein erstes Rezept hinzu!")+'</p></div>';
@@ -1808,8 +1822,14 @@ function tplList(){
     });
   }
   var hasFilters = S.activeFilters.length > 0;
+  var sortLabels = {newest:"Neueste zuerst",oldest:"Älteste zuerst",az:"A → Z",za:"Z → A"};
+  var sortSelect = '<select class="inp inp-sm" style="width:auto;padding:8px 10px" onchange="setSortBy(this.value)">'
+    + Object.keys(sortLabels).map(function(k){return '<option value="'+k+'"'+(S.sortBy===k?' selected':'')+'>'+sortLabels[k]+'</option>';}).join('')
+    + '</select>';
+  var hasFilters = S.activeFilters.length > 0;
   return '<div class="section-hd"><h2>Rezepte <span style="color:var(--text-muted);font-weight:400;font-size:16px">('+list.length+(S.recipes.length!==list.length?'/'+S.recipes.length:'')+')</span></h2>'
-    +'<div style="display:flex;gap:8px">'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    +sortSelect
     +'<button class="btn btn-secondary" onclick="toggleFilterPanel()" style="'+(S.filterOpen||hasFilters?'background:var(--green-light);color:var(--green-darkest)':'')+'">&#9878; Filter'+(hasFilters?' ('+S.activeFilters.length+')':'')+'</button>'
     +'<button class="btn btn-secondary" onclick="openImportModal()">&#128203; Importieren</button>'
     +'<button class="btn btn-primary" onclick="doNew()">'+svg(I.plus)+' Neu</button></div></div>'
