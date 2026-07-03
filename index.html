@@ -952,13 +952,13 @@ function tplWhatCook(){
     "Aufwand": ["Schnell","Mittel","Aufwendig"]
   };
 
-  var html = '<h2 style="font-family:\\'Plus Jakarta Sans\\',sans-serif;font-size:24px;font-weight:800;margin-bottom:6px">&#127922; Was koche ich heute?</h2>';
+  var html = '<h2 style="font-family:\'Plus Jakarta Sans\',sans-serif;font-size:24px;font-weight:800;margin-bottom:6px">&#127922; Was koche ich heute?</h2>';
   html += '<p style="font-size:14px;color:var(--text-3);margin-bottom:24px">Lass dir ein Rezept vorschlagen \u2013 aus deiner Sammlung oder komplett neu von der KI.</p>';
 
   // Zutaten die ich habe
   html += '<div class="card" style="padding:20px;margin-bottom:16px">';
   html += '<div class="field" style="margin-bottom:10px"><label>Zutaten die ich schon habe (optional)</label>';
-  html += '<div style="display:flex;gap:8px"><input class="inp" id="wc-ing-input" placeholder="z.B. Hähnchen, Reis..." onkeydown="if(event.key===\\'Enter\\'){event.preventDefault();addWcIngredient();}" />';
+  html += '<div style="display:flex;gap:8px"><input class="inp" id="wc-ing-input" placeholder="z.B. Hähnchen, Reis..." onkeydown="if(event.key===\'Enter\'){event.preventDefault();addWcIngredient();}" />';
   html += '<button class="btn btn-secondary" onclick="addWcIngredient()">+ Hinzufügen</button></div></div>';
   if (S.wcHaveIngredients.length > 0) {
     html += '<div style="display:flex;flex-wrap:wrap;gap:6px">';
@@ -1014,7 +1014,7 @@ function wcResultHtml() {
 
     return '<div class="card" style="padding:28px">'
       + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:6px">'
-      + '<h3 style="font-family:\\'Plus Jakarta Sans\\',sans-serif;font-size:22px;font-weight:800">'+esc(r.name)+'</h3>'
+      + '<h3 style="font-family:\'Plus Jakarta Sans\',sans-serif;font-size:22px;font-weight:800">'+esc(r.name)+'</h3>'
       + '<span style="background:#F5F3FF;color:#7C3AED;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap">&#10024; KI-Vorschlag</span>'
       + '</div>'
       + (r.description?'<p style="color:var(--text-3);font-size:14px;margin-bottom:16px">'+esc(r.description)+'</p>':'')
@@ -1035,7 +1035,7 @@ function wcResultHtml() {
     var thumb = rec.photo ? '<img src="'+rec.photo+'" style="width:100%;max-height:200px;object-fit:cover;border-radius:12px;margin-bottom:16px" />' : '';
     return '<div class="card" style="padding:28px">'
       + thumb
-      + '<h3 style="font-family:\\'Plus Jakarta Sans\\',sans-serif;font-size:22px;font-weight:800;margin-bottom:6px">'+esc(rec.name)+'</h3>'
+      + '<h3 style="font-family:\'Plus Jakarta Sans\',sans-serif;font-size:22px;font-weight:800;margin-bottom:6px">'+esc(rec.name)+'</h3>'
       + (rec.description?'<p style="color:var(--text-3);font-size:14px;margin-bottom:14px">'+esc(rec.description)+'</p>':'')
       + '<div style="display:flex;gap:16px;font-size:13px;color:var(--text-3);margin-bottom:14px">'
       + (rec.servings?'<span>&#128101; '+esc(rec.servings)+' Portionen</span>':'')
@@ -1043,7 +1043,7 @@ function wcResultHtml() {
       + '</div>'
       + ((rec.tags&&rec.tags.length)?'<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:20px">'+rec.tags.map(function(t){return tagHtml(t,false,false);}).join('')+'</div>':'')
       + '<div style="display:flex;gap:10px">'
-      + '<button class="btn btn-primary" onclick="doView(\\''+rec.id+'\\')">Rezept ansehen</button>'
+      + '<button class="btn btn-primary" onclick="doView(\''+rec.id+'\')">Rezept ansehen</button>'
       + '<button class="btn btn-secondary" onclick="suggestFromRecipes()">&#8635; Anderer Vorschlag</button>'
       + '</div></div>';
   }
@@ -1967,7 +1967,7 @@ function tplWeek(){
   return '<div class="section-hd"><h2>Wochenplan</h2>'+exportBtns+'</div>'+rows+combined;
 }
 function makeShopItem(key, label, done) {
-  var safeKey = key.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  var safeKey = key.replace(/\\/g,'\\\').replace(/'/g,"\'");
   var checkSvg = done ? '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>' : '';
   var safeLabel = label.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   return '<div class="shop-item' + (done?' done':'') + '" data-key="' + key.replace(/"/g,'&quot;') + '" onclick="toggleShopI(\'' + safeKey + '\')">'
