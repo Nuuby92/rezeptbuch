@@ -940,6 +940,7 @@ window.submitImport=async function(){
     if(importTab==="image"){body.imageBase64=importImageBase64;body.imageType=importImageType;}
     else if(importTab==="url"){body.url=url;}
     else{body.text=text;}
+    body.uid=S.user.uid;
     var res=await fetch("/api/import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
     var data=await res.json();
     if(!res.ok){statusEl.textContent=data.error||"Fehler.";statusEl.style.color="var(--danger)";btn.disabled=false;return;}
@@ -1127,7 +1128,7 @@ window.suggestFromAI = async function() {
     var res = await fetch('/api/whatcook', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ haveIngredients: S.wcHaveIngredients, filters: S.wcFilters })
+      body: JSON.stringify({ haveIngredients: S.wcHaveIngredients, filters: S.wcFilters, uid: S.user.uid })
     });
     var data = await res.json();
     if (res.ok && data.recipe) {
@@ -1202,7 +1203,7 @@ async function autoCategorizRecipe(recipe) {
     var res = await fetch("/api/categorize", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: recipe.name, description: recipe.description, ingredients: recipe.ingredients }),
+      body: JSON.stringify({ name: recipe.name, description: recipe.description, ingredients: recipe.ingredients, uid: S.user.uid }),
     });
     var data = await res.json();
     return data.tags || [];
@@ -1410,7 +1411,7 @@ window.openSubModal = async function(ingredient, amount, unit, recipeName, other
     var res = await fetch("/api/substitute", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ingredient: ingredient, amount: amount, unit: unit, recipeName: recipeName, recipeIngredients: otherIngs }),
+      body: JSON.stringify({ ingredient: ingredient, amount: amount, unit: unit, recipeName: recipeName, recipeIngredients: otherIngs, uid: S.user.uid }),
     });
     var data = await res.json();
     if (!res.ok || !data.alternatives) {
@@ -1566,7 +1567,7 @@ async function fetchNutritionForRecipe(recipe, portions) {
     var res = await fetch("/api/nutrition", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ingredients: ings, servings: base })
+      body: JSON.stringify({ ingredients: ings, servings: base, uid: S.user.uid })
     });
     var data = await res.json();
     if (!res.ok || !data.perServing) return null;
@@ -1666,7 +1667,7 @@ window.recalcNutritionNow = async function() {
     var ings = (r.ingredients||[]).filter(function(i){return i.name && i.amount;}).map(function(i){return {name:i.name,amount:i.amount,unit:i.unit};});
     var res = await fetch("/api/nutrition", {
       method: "POST", headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({ingredients: ings, servings: r.servings || 1})
+      body: JSON.stringify({ingredients: ings, servings: r.servings || 1, uid: S.user.uid})
     });
     var data = await res.json();
     if (res.ok && data.total) {
@@ -1699,7 +1700,7 @@ window.loadWineRecommendation = async function() {
     var res = await fetch("/api/wine", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: r.name, description: r.description, ingredients: r.ingredients, tags: r.tags }),
+      body: JSON.stringify({ name: r.name, description: r.description, ingredients: r.ingredients, tags: r.tags, uid: S.user.uid }),
     });
     var data = await res.json();
     if (!res.ok || !data.wines) {
@@ -2196,7 +2197,7 @@ async function loadWeekSuggestions(key) {
     var res = await fetch("/api/suggest", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ planned: planned, available: available.slice(0,30), day: day, meal: meal })
+      body: JSON.stringify({ planned: planned, available: available.slice(0,30), day: day, meal: meal, uid: S.user.uid })
     });
     var data = await res.json();
     var suggestions = data.suggestions || [];
@@ -2496,7 +2497,7 @@ window.doSave=async function(existingId){
     if (nutIngs.length > 0) {
       var nutRes = await fetch("/api/nutrition", {
         method: "POST", headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({ingredients: nutIngs, servings: recipe.servings || 1})
+        body: JSON.stringify({ingredients: nutIngs, servings: recipe.servings || 1, uid: S.user.uid})
       });
       var nutData = await nutRes.json();
       if (nutRes.ok && nutData.total) {
