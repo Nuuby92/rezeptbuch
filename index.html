@@ -1062,7 +1062,7 @@ function wcResultHtml() {
       + '</div>'
       + ((rec.tags&&rec.tags.length)?'<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:20px">'+rec.tags.map(function(t){return tagHtml(t,false,false);}).join('')+'</div>':'')
       + '<div style="display:flex;gap:10px">'
-      + '<button class="btn btn-primary" onclick="goToRecipe(\'+rec.id+\')">Rezept ansehen</button>'
+      + '<button class="btn btn-primary" onclick="goToRecipe(\'' + rec.id + '\')">Rezept ansehen</button>'
       + '<button class="btn btn-secondary" onclick="suggestFromRecipes()">&#8635; Anderer Vorschlag</button>'
       + '</div></div>';
   }
@@ -2335,8 +2335,6 @@ window.debouncedSearch=function(q){
 
 window.doEdit=function(id){S.editing=S.recipes.find(function(r){return r.id===id;});S.view="form";render();};
 window.goToRecipe = function(id) {
-  console.log('goToRecipe called with id:', id, typeof id);
-  console.log('Available recipe IDs:', S.recipes.map(function(r){return r.id;}));
   var found = S.recipes.find(function(r){ return r.id === id; });
   if (!found) { toast('Rezept konnte nicht gefunden werden.'); return; }
   S.tab = 'recipes';
