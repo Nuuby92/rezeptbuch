@@ -34,11 +34,10 @@
     #app { display:flex; flex-direction:column; min-height:100vh; }
     main { max-width:860px; margin:0 auto; padding:32px 20px; flex:1; width:100%; }
     header { background:var(--surface); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:50; }
-    .header-inner { max-width:860px; margin:0 auto; padding:0 20px; display:flex; align-items:center; justify-content:space-between; height:64px; gap:8px; }
-    .logo { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+    .header-inner { max-width:860px; margin:0 auto; padding:0 20px; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; height:64px; gap:8px; }
+    .logo { display:flex; align-items:center; gap:10px; flex-shrink:0; justify-self:start; }
     .logo-icon { width:34px; height:34px; border-radius:10px; background:linear-gradient(135deg,var(--accent-dark),var(--accent)); display:flex; align-items:center; justify-content:center; }
-    .logo-text { font-family:'Plus Jakarta Sans',sans-serif; font-weight:800; font-size:17px; letter-spacing:-.3px; }
-    nav { display:flex; gap:2px; }
+    nav { display:flex; gap:2px; justify-self:center; }
     .nav-btn { display:flex; align-items:center; gap:6px; padding:7px 12px; border-radius:var(--radius-sm); background:transparent; color:var(--text-3); font-size:13px; font-weight:600; transition:all .15s; border:none; cursor:pointer; white-space:nowrap; }
     .nav-btn.active { background:var(--accent-light); color:var(--accent-dark); }
     [data-theme="dark"] .nav-btn.active { color:var(--accent); }
@@ -191,7 +190,7 @@
     .auth-fields { display:flex; flex-direction:column; gap:14px; margin-bottom:20px; }
     .auth-error { background:var(--danger-bg); color:var(--danger); border-radius:var(--radius-sm); padding:10px 14px; font-size:13px; margin-bottom:14px; display:none; }
     .auth-error.show { display:block; }
-    .user-info { position:relative; flex-shrink:0; }
+    .user-info { position:relative; flex-shrink:0; justify-self:end; }
     .user-avatar { width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,var(--accent-dark),var(--accent)); color:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; cursor:pointer; border:none; flex-shrink:0; transition:transform .15s; }
     .user-avatar:hover { transform:scale(1.05); }
     .user-dropdown { position:absolute; right:0; top:42px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); padding:8px; min-width:200px; box-shadow:var(--shadow-lg); z-index:100; display:none; }
@@ -225,7 +224,6 @@
 
     @media (max-width: 600px) {
       .header-inner { padding:0 14px; height:58px; }
-      .logo-text { display:none; }
       nav { gap:1px; }
       .nav-btn { padding:7px 9px; font-size:0; gap:0; }
       .nav-btn svg, .nav-btn span[style] { font-size:16px !important; }
@@ -281,7 +279,6 @@
         <div class="logo-icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15z"/></svg>
         </div>
-        <span class="logo-text">Mein Rezeptbuch</span>
       </div>
       <nav>
         <button class="nav-btn active" id="nav-recipes" onclick="switchTab('recipes')">
