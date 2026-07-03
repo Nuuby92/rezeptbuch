@@ -279,6 +279,9 @@
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"/></svg>
           <span>Einkauf</span>
         </button>
+        <button class="nav-btn" id="nav-whatcook" onclick="switchTab('whatcook')">
+          <span style="font-size:15px">&#127922;</span> Was koche ich?
+        </button>
       </nav>
       <div class="user-info">
         <button class="user-avatar" id="user-avatar-btn" onclick="toggleUserMenu()"></button>
@@ -454,6 +457,12 @@ var S = {
   shopChecked: {},
   activeFilters: [],
   filterOpen: false,
+  wcHaveIngredients: [],
+  wcFilters: [],
+  wcCurrentRecipe: null,
+  wcExcluded: [],
+  wcAiResult: null,
+  wcAiLoading: false,
   wineList: [],
   modalMode: "week", modalDay: null, modalRecipeId: null,
   bringItems: [],
@@ -925,7 +934,202 @@ window.submitImport=async function(){
 // ── Tab switching ──────────────────────────────────────────────────────────
 window.switchTab=function(tab){
   S.tab=tab;S.view="list";S.editing=null;S.viewing=null;S.search="";S.nutrition=null;
-  ["recipes","week","shopping"].forEach(function(t){document.getElementById("nav-"+t).classList.toggle("active",t===tab);});
+  ["recipes","week","shopping","whatcook"].forEach(function(t){document.getElementById("nav-"+t).classList.toggle("active",t===tab);});
+  render();
+};
+
+
+// ── Was koche ich heute? ────────────────────────────────────────────────────
+function tplWhatCook(){
+  var allTags = {};
+  S.recipes.forEach(function(r){ (r.tags||[]).forEach(function(t){ allTags[t]=(allTags[t]||0)+1; }); });
+
+  var groups = {
+    "Mahlzeit": ["Hauptgericht","Beilage","Frühstück","Snack","Dessert","Getränk"],
+    "Zutaten": ["Fleisch","Geflügel","Fisch","Meeresfrüchte","Vegetarisch","Vegan","Eier","Käse"],
+    "Küche": ["Italienisch","Asiatisch","Deutsch","Mexikanisch","Mediterran","Indisch","Amerikanisch","Französisch"],
+    "Art": ["Pasta/Nudeln","Reis/Getreide","Suppe/Eintopf","Salat","Sandwich/Wrap","Pizza","Curry","Pfannengericht","Backen","Bowl"],
+    "Aufwand": ["Schnell","Mittel","Aufwendig"]
+  };
+
+  var html = '<h2 style="font-family:\\'Plus Jakarta Sans\\',sans-serif;font-size:24px;font-weight:800;margin-bottom:6px">&#127922; Was koche ich heute?</h2>';
+  html += '<p style="font-size:14px;color:var(--text-3);margin-bottom:24px">Lass dir ein Rezept vorschlagen \u2013 aus deiner Sammlung oder komplett neu von der KI.</p>';
+
+  // Zutaten die ich habe
+  html += '<div class="card" style="padding:20px;margin-bottom:16px">';
+  html += '<div class="field" style="margin-bottom:10px"><label>Zutaten die ich schon habe (optional)</label>';
+  html += '<div style="display:flex;gap:8px"><input class="inp" id="wc-ing-input" placeholder="z.B. Hähnchen, Reis..." onkeydown="if(event.key===\\'Enter\\'){event.preventDefault();addWcIngredient();}" />';
+  html += '<button class="btn btn-secondary" onclick="addWcIngredient()">+ Hinzufügen</button></div></div>';
+  if (S.wcHaveIngredients.length > 0) {
+    html += '<div style="display:flex;flex-wrap:wrap;gap:6px">';
+    S.wcHaveIngredients.forEach(function(ing, i){
+      html += '<span style="display:inline-flex;align-items:center;gap:6px;background:var(--accent-light);color:var(--accent-dark);padding:5px 10px;border-radius:20px;font-size:13px;font-weight:600">'+esc(ing)+'<button onclick="removeWcIngredient('+i+')" style="background:none;border:none;color:inherit;cursor:pointer;font-weight:800;padding:0;line-height:1">&times;</button></span>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+
+  // Filter
+  html += '<div class="card" style="padding:20px;margin-bottom:16px">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:'+(S.wcFilters.length?'14':'0')+'px">';
+  html += '<label style="font-size:11.5px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.7px">Filter'+(S.wcFilters.length?' ('+S.wcFilters.length+')':'')+'</label>';
+  if (S.wcFilters.length > 0) html += '<button class="btn btn-ghost btn-sm" onclick="clearWcFilters()">&#10005; Zurücksetzen</button>';
+  html += '</div>';
+  Object.keys(groups).forEach(function(groupName) {
+    var tags = groups[groupName];
+    html += '<div style="margin-bottom:10px"><div style="font-size:10px;font-weight:800;color:var(--text-3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">'+groupName+'</div><div class="filter-tags">';
+    tags.forEach(function(tag){
+      var active = S.wcFilters.indexOf(tag) >= 0;
+      html += '<span class="'+tagClass(tag)+' tag-filter'+(active?' active':'')+'" data-tag="'+esc(tag)+'" onclick="toggleWcFilter(this)">'+esc(tag)+'</span>';
+    });
+    html += '</div></div>';
+  });
+  html += '</div>';
+
+  // Action buttons
+  html += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px">';
+  html += '<button class="btn btn-primary" onclick="suggestFromRecipes()" style="flex:1;justify-content:center;padding:13px">&#127922; Rezept vorschlagen</button>';
+  html += '<button class="btn btn-secondary" onclick="suggestFromAI()" style="flex:1;justify-content:center;padding:13px">&#10024; KI-Rezept erstellen</button>';
+  html += '</div>';
+
+  // Result area
+  html += '<div id="wc-result">' + wcResultHtml() + '</div>';
+
+  return html;
+}
+
+function wcResultHtml() {
+  if (S.wcAiLoading) {
+    return '<div class="card" style="padding:40px;text-align:center"><div class="spinner" style="margin:0 auto 16px"></div><p style="color:var(--text-3)">Claude erstellt ein Rezept für dich\u2026</p></div>';
+  }
+
+  if (S.wcAiResult) {
+    var r = S.wcAiResult;
+    var ingHtml = (r.ingredients||[]).map(function(i){
+      return '<li style="display:flex;gap:10px;padding:6px 0;font-size:14px"><span class="ing-dot"></span><span style="font-weight:700;color:var(--accent);min-width:70px">'+esc([i.amount,i.unit].filter(Boolean).join(' '))+'</span><span>'+esc(i.name)+'</span></li>';
+    }).join('');
+    var stepHtml = (r.steps||[]).map(function(s,i){
+      return '<li style="display:flex;gap:12px;margin-bottom:12px"><span class="step-num">'+(i+1)+'</span><span style="padding-top:5px;font-size:14px;color:var(--text-2)">'+esc(s.text)+'</span></li>';
+    }).join('');
+
+    return '<div class="card" style="padding:28px">'
+      + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:6px">'
+      + '<h3 style="font-family:\\'Plus Jakarta Sans\\',sans-serif;font-size:22px;font-weight:800">'+esc(r.name)+'</h3>'
+      + '<span style="background:#F5F3FF;color:#7C3AED;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap">&#10024; KI-Vorschlag</span>'
+      + '</div>'
+      + (r.description?'<p style="color:var(--text-3);font-size:14px;margin-bottom:16px">'+esc(r.description)+'</p>':'')
+      + '<div style="display:flex;gap:16px;padding-bottom:16px;border-bottom:1px solid var(--border);margin-bottom:16px;font-size:13px;color:var(--text-3)">'
+      + (r.servings?'<span>&#128101; '+esc(r.servings)+' Portionen</span>':'')
+      + (r.prepTime?'<span>&#128337; '+esc(r.prepTime)+'</span>':'')
+      + '</div>'
+      + '<ul style="list-style:none;margin-bottom:20px">'+ingHtml+'</ul>'
+      + '<ol style="list-style:none">'+stepHtml+'</ol>'
+      + '<div style="display:flex;gap:10px;margin-top:20px;padding-top:20px;border-top:1px solid var(--border)">'
+      + '<button class="btn btn-primary" onclick="saveWcAiRecipe()">&#128190; Rezept speichern</button>'
+      + '<button class="btn btn-secondary" onclick="suggestFromAI()">&#8635; Anderes Rezept</button>'
+      + '</div></div>';
+  }
+
+  if (S.wcCurrentRecipe) {
+    var rec = S.wcCurrentRecipe;
+    var thumb = rec.photo ? '<img src="'+rec.photo+'" style="width:100%;max-height:200px;object-fit:cover;border-radius:12px;margin-bottom:16px" />' : '';
+    return '<div class="card" style="padding:28px">'
+      + thumb
+      + '<h3 style="font-family:\\'Plus Jakarta Sans\\',sans-serif;font-size:22px;font-weight:800;margin-bottom:6px">'+esc(rec.name)+'</h3>'
+      + (rec.description?'<p style="color:var(--text-3);font-size:14px;margin-bottom:14px">'+esc(rec.description)+'</p>':'')
+      + '<div style="display:flex;gap:16px;font-size:13px;color:var(--text-3);margin-bottom:14px">'
+      + (rec.servings?'<span>&#128101; '+esc(rec.servings)+' Portionen</span>':'')
+      + (rec.prepTime?'<span>&#128337; '+esc(rec.prepTime)+'</span>':'')
+      + '</div>'
+      + ((rec.tags&&rec.tags.length)?'<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:20px">'+rec.tags.map(function(t){return tagHtml(t,false,false);}).join('')+'</div>':'')
+      + '<div style="display:flex;gap:10px">'
+      + '<button class="btn btn-primary" onclick="doView(\\''+rec.id+'\\')">Rezept ansehen</button>'
+      + '<button class="btn btn-secondary" onclick="suggestFromRecipes()">&#8635; Anderer Vorschlag</button>'
+      + '</div></div>';
+  }
+
+  return '';
+}
+
+window.addWcIngredient = function() {
+  var el = document.getElementById('wc-ing-input');
+  var val = el.value.trim();
+  if (!val) return;
+  S.wcHaveIngredients.push(val);
+  el.value = '';
+  renderOnly();
+  setTimeout(function(){ var e2=document.getElementById('wc-ing-input'); if(e2) e2.focus(); }, 10);
+};
+window.removeWcIngredient = function(i) { S.wcHaveIngredients.splice(i,1); renderOnly(); };
+window.toggleWcFilter = function(el) {
+  var tag = el.getAttribute('data-tag');
+  var idx = S.wcFilters.indexOf(tag);
+  if (idx >= 0) S.wcFilters.splice(idx,1); else S.wcFilters.push(tag);
+  renderOnly();
+};
+window.clearWcFilters = function() { S.wcFilters = []; renderOnly(); };
+
+window.suggestFromRecipes = function() {
+  S.wcAiResult = null;
+  var candidates = S.recipes.filter(function(r) {
+    if (S.wcFilters.length > 0) {
+      var rTags = r.tags || [];
+      var allMatch = S.wcFilters.every(function(f){ return rTags.indexOf(f) >= 0; });
+      if (!allMatch) return false;
+    }
+    if (S.wcHaveIngredients.length > 0) {
+      var rIngNames = (r.ingredients||[]).map(function(i){ return (i.name||'').toLowerCase(); }).join(' ');
+      var hasAny = S.wcHaveIngredients.some(function(have){ return rIngNames.indexOf(have.toLowerCase()) >= 0; });
+      if (!hasAny) return false;
+    }
+    return true;
+  });
+  // Exclude last shown to avoid repeats
+  var pool = candidates.filter(function(r){ return S.wcExcluded.indexOf(r.id) < 0; });
+  if (pool.length === 0) { pool = candidates; S.wcExcluded = []; }
+  if (pool.length === 0) {
+    S.wcCurrentRecipe = null;
+    toast('Keine passenden Rezepte gefunden. Filter anpassen?');
+    renderOnly();
+    return;
+  }
+  var pick = pool[Math.floor(Math.random() * pool.length)];
+  S.wcCurrentRecipe = pick;
+  S.wcExcluded.push(pick.id);
+  renderOnly();
+};
+
+window.suggestFromAI = async function() {
+  S.wcCurrentRecipe = null;
+  S.wcAiResult = null;
+  S.wcAiLoading = true;
+  renderOnly();
+  try {
+    var res = await fetch('/api/whatcook', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ haveIngredients: S.wcHaveIngredients, filters: S.wcFilters })
+    });
+    var data = await res.json();
+    if (res.ok && data.recipe) {
+      S.wcAiResult = data.recipe;
+    } else {
+      toast('Rezept konnte nicht erstellt werden.');
+    }
+  } catch(e) {
+    toast('Fehler beim Erstellen des Rezepts.');
+  }
+  S.wcAiLoading = false;
+  renderOnly();
+};
+
+window.saveWcAiRecipe = async function() {
+  if (!S.wcAiResult) return;
+  var recipe = Object.assign({}, S.wcAiResult, { id: null, tags: S.wcFilters.slice() });
+  await fbSaveRecipe(recipe);
+  toast('Rezept gespeichert \u2713');
+  S.wcAiResult = null;
+  S.tab = 'recipes';
   render();
 };
 
@@ -1540,6 +1744,8 @@ function renderOnly(){
     else if(S.view==="detail") el.innerHTML=tplDetail();
   } else if(S.tab==="week"){
     el.innerHTML=tplWeek();
+  } else if(S.tab==="whatcook"){
+    el.innerHTML=tplWhatCook();
   } else {
     el.innerHTML=tplShopping();
   }
