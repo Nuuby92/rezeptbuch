@@ -1,4 +1,5 @@
 const { checkRateLimit, truncateInput } = require('./_rateLimit');
+const { verifyAppCheckToken } = require('./_appCheck');
 
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -14,6 +15,11 @@ module.exports = async function handler(req, res) {
   const uid = req.body?.uid;
   const rl = await checkRateLimit(uid);
   if (!rl.allowed) return res.status(429).json({ error: rl.error });
+
+  // App Check: verifiziert dass die Anfrage von der echten Webseite kommt (nicht von einem Bot)
+  const appCheckToken = req.headers["x-firebase-appcheck"];
+  const isValidAppCheck = await verifyAppCheckToken(appCheckToken);
+  if (!isValidAppCheck) return res.status(403).json({ error: "Zugriff verweigert (App Check fehlgeschlagen)." });
 
   try {
     const { planned, available, day, meal } = req.body;
