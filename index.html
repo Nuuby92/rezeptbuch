@@ -176,6 +176,10 @@
     .cook-ings { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:28px; max-width:560px; }
     .cook-ing-chip { background:var(--accent-light); color:var(--accent-dark); font-size:13.5px; font-weight:700; padding:7px 14px; border-radius:20px; }
     [data-theme="dark"] .cook-ing-chip { color:var(--accent); }
+    .cook-ing-chip.warn { background:#FFF7ED; color:#92400E; }
+    [data-theme="dark"] .cook-ing-chip.warn { background:#3B1F0A; color:#FED7AA; }
+    .ing-warning { display:flex; align-items:flex-start; gap:10px; background:#FFF7ED; border:1px solid #FED7AA; border-radius:var(--radius-sm); padding:12px 14px; font-size:13px; color:#92400E; margin-bottom:16px; line-height:1.5; }
+    [data-theme="dark"] .ing-warning { background:#3B1F0A; border-color:#92400E; color:#FED7AA; }
     .cook-timer { display:flex; flex-direction:column; align-items:center; gap:12px; }
     .cook-timer-display { font-family:'Plus Jakarta Sans',sans-serif; font-size:44px; font-weight:800; color:var(--text); font-variant-numeric:tabular-nums; }
     .cook-timer.running .cook-timer-display { color:var(--accent-dark); }
@@ -1961,6 +1965,10 @@ function tplDetail(){
     +'</div>'
     +(steps.length ? '<button class="btn btn-primary" style="width:100%;justify-content:center;margin-bottom:20px;padding:14px;font-size:15px" onclick="startCookMode()">'+svg(I.pot,18)+' Kochmodus starten</button>' : '')
     +'<div class="nutrition-box" id="nutrition-box"><div class="nutrition-loading"><div class="spinner spinner-sm"></div> N&auml;hrwerte werden berechnet&hellip;</div></div>'
+    +(function(){
+      var missing = findMissingIngredientMentions(steps.map(function(s){return s.text;}).join(" "), ings.map(function(i){return i.name;}));
+      return missing.length ? '<div class="ing-warning"><span>&#9888;&#65039;</span><span>In der Zubereitung erw&auml;hnt, aber nicht in der Zutatenliste: <strong>'+esc(missing.join(", "))+'</strong>. Vielleicht ergänzen?</span></div>' : "";
+    })()
     +'<p class="section-label">Zutaten</p><ul class="ingredient-list" id="scaled-ingredients">'+scaledIngRows+'</ul>'
     +'<p class="section-label">Zubereitung</p><ol class="steps-list">'+stepRows+'</ol>'
     +'<div class="detail-actions">'
@@ -2593,6 +2601,54 @@ function cookKeyHandler(e) {
   else if (e.key === "ArrowLeft") { window.cookPrev(); }
 }
 
+var _cookTouchX = null, _cookTouchY = null;
+function cookTouchStart(e) {
+  var t = e.touches[0];
+  _cookTouchX = t.clientX; _cookTouchY = t.clientY;
+}
+function cookTouchEnd(e) {
+  if (_cookTouchX === null) return;
+  var t = e.changedTouches[0];
+  var dx = t.clientX - _cookTouchX; var dy = t.clientY - _cookTouchY;
+  _cookTouchX = null;
+  if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+    if (dx < 0) window.cookNext(); else window.cookPrev();
+  }
+}
+
+// ── Zutaten-Konsistenzprüfung ─────────────────────────────────────────────
+// Erkennt Wörter in der Zubereitung, die wie eine Zutat aussehen (großgeschrieben,
+// aus einer Liste gängiger Zutaten-Stämme), aber nicht in der Zutatenliste stehen.
+var KNOWN_INGREDIENT_STEMS = [
+  "tomat","zwiebel","knoblauch","kartoffel","karotte","möhr","paprika","gurke","zucchini","aubergine",
+  "pilz","champignon","spinat","brokkoli","blumenkohl","lauch","sellerie","fenchel","rosenkohl","kohl",
+  "mais","erbse","bohne","linse","kichererbse","avocado","salat","rukola","ingwer","chili",
+  "apfel","birne","banane","zitrone","limette","orange","beere","erdbeer","himbeer","blaubeer",
+  "traube","mango","ananas","pfirsich","kokos",
+  "hähnchen","huhn","pute","rind","schwein","hack","lamm","fisch","lachs","thunfisch",
+  "garnele","ei","eier","tofu","speck","schinken","wurst",
+  "milch","sahne","joghurt","quark","käse","butter","frischkäse","mozzarella","parmesan","feta",
+  "mehl","reis","nudel","pasta","spaghetti","couscous","quinoa","hafer","brot","semmel","panade",
+  "salz","pfeffer","zucker","honig","essig","öl","senf","sojasauce","curry","kreuzkümmel",
+  "zimt","basilikum","petersilie","koriander","thymian","rosmarin","oregano","dill","minze","lorbeer",
+  "muskat","kardamom","vanille","mandel","walnuss","cashew","erdnuss","pinienkern","sesam",
+  "brühe","wein","tomatenmark","sahne","kreme"
+];
+
+function findMissingIngredientMentions(stepsText, ingredientNames) {
+  var lowerNames = ingredientNames.map(function(n){return n.toLowerCase();});
+  var words = stepsText.match(/[A-ZÄÖÜ][a-zäöüß]{3,}/g) || [];
+  var seen = {}; var missing = [];
+  words.forEach(function(w){
+    var lw = w.toLowerCase();
+    var stem = KNOWN_INGREDIENT_STEMS.find(function(s){ return lw.indexOf(s) === 0; });
+    if (!stem || seen[stem]) return;
+    var covered = lowerNames.some(function(n){ return n.indexOf(stem) !== -1; });
+    if (!covered) { seen[stem] = true; missing.push(w); }
+  });
+  return missing;
+}
+
 function playBeep() {
   try {
     var Ctx = window.AudioContext || window.webkitAudioContext;
@@ -2623,17 +2679,23 @@ window.startCookMode = function() {
   });
   CM.stepIndex = 0;
   cookResetTimerState();
-  document.getElementById("cook-mode").classList.add("open");
+  var el = document.getElementById("cook-mode");
+  el.classList.add("open");
   document.body.style.overflow = "hidden";
   document.addEventListener("keydown", cookKeyHandler);
+  el.addEventListener("touchstart", cookTouchStart, {passive:true});
+  el.addEventListener("touchend", cookTouchEnd, {passive:true});
   renderCookMode();
 };
 
 window.exitCookMode = function() {
   if (CM.timerInterval) clearInterval(CM.timerInterval);
-  document.getElementById("cook-mode").classList.remove("open");
+  var el = document.getElementById("cook-mode");
+  el.classList.remove("open");
   document.body.style.overflow = "";
   document.removeEventListener("keydown", cookKeyHandler);
+  el.removeEventListener("touchstart", cookTouchStart);
+  el.removeEventListener("touchend", cookTouchEnd);
 };
 
 window.cookNext = function() {
@@ -2690,6 +2752,10 @@ function renderCookMode() {
   var matched = CM.ings.filter(function(i){ return stepLower.indexOf(i.name.toLowerCase()) !== -1; });
   var chips = matched.map(function(i){
     return '<span class="cook-ing-chip">'+esc([i.amount,i.unit,i.name].filter(Boolean).join(" "))+'</span>';
+  }).join("");
+  var missingMentions = findMissingIngredientMentions(step.text, CM.ings.map(function(i){return i.name;}));
+  chips += missingMentions.map(function(w){
+    return '<span class="cook-ing-chip warn" title="Steht nicht in der Zutatenliste">&#9888; '+esc(w)+'</span>';
   }).join("");
   var isLast = CM.stepIndex === CM.steps.length-1;
   var pct = Math.round(((CM.stepIndex+1)/CM.steps.length)*100);
