@@ -2635,6 +2635,19 @@ var KNOWN_INGREDIENT_STEMS = [
   "brühe","wein","tomatenmark","sahne","kreme"
 ];
 
+// Erkennt ob ein Zutatenname im Text erwähnt wird - auch bei zusammengesetzten
+// Namen wie "Cherrytomaten" vs. Text "Tomaten" (in beide Richtungen geprüft).
+function textMentionsIngredient(text, ingredientName) {
+  var lowerText = text.toLowerCase();
+  var nameLower = ingredientName.toLowerCase();
+  if (lowerText.indexOf(nameLower) !== -1) return true;
+  var nameWords = nameLower.match(/[a-zäöüß]{4,}/g) || [nameLower];
+  var textWords = lowerText.match(/[a-zäöüß]{4,}/g) || [];
+  return nameWords.some(function(nw){
+    return textWords.some(function(tw){ return nw.indexOf(tw) !== -1 || tw.indexOf(nw) !== -1; });
+  });
+}
+
 function findMissingIngredientMentions(stepsText, ingredientNames) {
   var lowerNames = ingredientNames.map(function(n){return n.toLowerCase();});
   var words = stepsText.match(/[A-ZÄÖÜ][a-zäöüß]{3,}/g) || [];
@@ -2748,8 +2761,7 @@ window.cookResetTimer = function() { cookResetTimerState(); renderCookMode(); };
 function renderCookMode() {
   var el = document.getElementById("cook-mode");
   var step = CM.steps[CM.stepIndex];
-  var stepLower = step.text.toLowerCase();
-  var matched = CM.ings.filter(function(i){ return stepLower.indexOf(i.name.toLowerCase()) !== -1; });
+  var matched = CM.ings.filter(function(i){ return textMentionsIngredient(step.text, i.name); });
   var chips = matched.map(function(i){
     return '<span class="cook-ing-chip">'+esc([i.amount,i.unit,i.name].filter(Boolean).join(" "))+'</span>';
   }).join("");
