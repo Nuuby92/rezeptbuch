@@ -2726,10 +2726,10 @@ function renderCookMode() {
       +timerHtml
     +'</div>'
     +'<div class="cook-ftr">'
-      +(CM.stepIndex>0?'<button class="btn btn-secondary" style="flex:1" onclick="cookPrev()">'+svg(I.back)+' Zurück</button>':'<div style="flex:1"></div>')
+      +(CM.stepIndex>0?'<button class="btn btn-secondary" onclick="cookPrev()">'+svg(I.back)+' Zurück</button>':'')
       +(isLast
-        ? '<button class="btn btn-primary" style="flex:2;justify-content:center" onclick="exitCookMode()">'+svg(I.check)+' Fertig!</button>'
-        : '<button class="btn btn-primary" style="flex:2;justify-content:center" onclick="cookNext()">Weiter '+svg(I.fwd)+'</button>')
+        ? '<button class="btn btn-primary" style="margin-left:auto" onclick="exitCookMode()">'+svg(I.check)+' Fertig!</button>'
+        : '<button class="btn btn-primary" style="margin-left:auto" onclick="cookNext()">Weiter '+svg(I.fwd)+'</button>')
     +'</div>';
 }
 window.toggleShopI=function(key){
