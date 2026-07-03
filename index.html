@@ -171,6 +171,12 @@
     .modal-opt { background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:11px 14px; text-align:left; cursor:pointer; font-size:13.5px; font-weight:600; color:var(--text); font-family:inherit; display:flex; justify-content:space-between; align-items:center; transition:all .15s; }
     .modal-opt:hover { background:var(--accent-light); border-color:var(--accent); color:var(--accent-dark); }
     [data-theme="dark"] .modal-opt:hover { color:var(--accent); }
+    .day-group { border:1.5px solid #E4F2E1; border-radius:12px; overflow:hidden; flex-shrink:0; }
+    .day-group-hd { padding:6px 12px; font-weight:800; font-size:12.5px; background:var(--green-faint); color:var(--green-darkest); }
+    .day-meal-row { width:100%; text-align:left; display:flex; align-items:center; gap:8px; padding:8px 12px; border:none; border-top:1px solid var(--green-faint); background:var(--surface); font-size:12.5px; font-weight:600; color:var(--text); font-family:inherit; cursor:pointer; transition:background .15s; }
+    .day-meal-row:hover { background:var(--accent-light); }
+    .day-meal-row.occupied { background:var(--green-faint); }
+    .day-meal-row .week-tag { margin-left:auto; font-size:11px; padding:2px 8px; }
     .bring-info { background:#FFF7ED; border:1px solid #FED7AA; border-radius:var(--radius-sm); padding:12px 14px; font-size:13px; color:#92400E; margin-bottom:16px; line-height:1.5; }
     [data-theme="dark"] .bring-info { background:#3B1F0A; border-color:#92400E; color:#FED7AA; }
     .bring-fields { display:flex; flex-direction:column; gap:10px; margin-bottom:16px; }
@@ -2145,15 +2151,17 @@ function openDayModal(recipeId){
   document.getElementById("modal").classList.add("open");
   var html="";
   DAYS.forEach(function(day){
+    html+='<div class="day-group"><div class="day-group-hd">'+day+'</div>';
     MEALS.forEach(function(meal){
       var key=day+"__"+meal;
       var entry=S.weekPlan[key];
       var existing=entry?((entry.recipe||entry).name||""):"";
-      html+='<button class="modal-opt" onclick="assignDay(\''+day+'__'+meal+'\')">'
-        +MEAL_ICONS[meal]+' '+day+' – '+meal
-        +(existing?'<span style="font-size:12px;color:var(--text-muted)">'+esc(existing)+'</span>':"")
+      html+='<button class="day-meal-row'+(existing?' occupied':'')+'" onclick="assignDay(\''+key+'\')">'
+        +MEAL_ICONS[meal]+' <span>'+meal+'</span>'
+        +(existing?'<span class="week-tag">'+esc(existing)+'</span>':"")
         +'</button>';
     });
+    html+='</div>';
   });
   document.getElementById("modal-list").innerHTML=html;
 }
