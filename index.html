@@ -223,6 +223,23 @@
     .spinner-sm { width:16px; height:16px; border-width:2px; display:inline-block; vertical-align:middle; }
     @keyframes spin { to { transform:rotate(360deg); } }
 
+    @media (max-width: 600px) {
+      .header-inner { padding:0 14px; height:58px; }
+      .logo-text { display:none; }
+      nav { gap:1px; }
+      .nav-btn { padding:7px 9px; font-size:0; gap:0; }
+      .nav-btn svg, .nav-btn span[style] { font-size:16px !important; }
+      .nav-btn span:not([style]) { display:none; }
+      main { padding:20px 14px; }
+      .form-grid { grid-template-columns:1fr; }
+      .ing-row { grid-template-columns:60px 76px 1fr 30px; gap:6px; }
+      .nutrition-grid { grid-template-columns:repeat(2,1fr); }
+      .combined-items { columns:1; }
+      .detail-card, .form-card { padding:20px; }
+      .detail-title { font-size:24px; }
+      .section-hd h2 { font-size:20px; }
+    }
+
   </style>
 </head>
 <body>
@@ -280,7 +297,7 @@
           <span>Einkauf</span>
         </button>
         <button class="nav-btn" id="nav-whatcook" onclick="switchTab('whatcook')">
-          <span style="font-size:15px">&#127922;</span> Was koche ich?
+          <span style="font-size:15px">&#127922;</span><span>Was koche ich?</span>
         </button>
       </nav>
       <div class="user-info">
