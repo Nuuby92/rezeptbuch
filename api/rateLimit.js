@@ -6,7 +6,7 @@
 const { getAccessToken } = require('./googleAuth');
 
 const FIREBASE_PROJECT_ID = "rezeptbuch-253bc";
-const RATE_LIMIT_PER_HOUR = 30; // Max. KI-Anfragen pro Nutzer und Stunde (über alle Endpunkte zusammen)
+const RATE_LIMIT_PER_HOUR = 100; // Max. KI-Anfragen pro Nutzer und Stunde (über alle Endpunkte zusammen)
 const MAX_INPUT_LENGTH = 20000; // Max. Zeichen für Texteingaben (Import etc.)
 
 async function checkRateLimit(uid) {
