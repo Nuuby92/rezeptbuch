@@ -1,3 +1,5 @@
+const { checkRateLimit, truncateInput } = require('./_rateLimit');
+
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -8,6 +10,11 @@ module.exports = async function handler(req, res) {
   const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
   if (!ANTHROPIC_KEY) return res.status(500).json({ error: "API-Key nicht konfiguriert." });
 
+  // Rate limiting: uid muss vom Frontend mitgeschickt werden
+  const uid = req.body?.uid;
+  const rl = await checkRateLimit(uid);
+  if (!rl.allowed) return res.status(429).json({ error: rl.error });
+
   try {
     let { text, imageBase64, imageType, url } = req.body;
 
@@ -17,7 +24,6 @@ module.exports = async function handler(req, res) {
       const isYoutube = url.includes("youtube.com") || url.includes("youtu.be");
 
       if (isYoutube) {
-        // Extract video ID
         let videoId = null;
         const m1 = url.match(/[?&]v=([^&]+)/);
         const m2 = url.match(/youtu\.be\/([^?]+)/);
@@ -25,30 +31,55 @@ module.exports = async function handler(req, res) {
         else if (m2) videoId = m2[1];
         if (!videoId) return res.status(400).json({ error: "YouTube Video-ID konnte nicht erkannt werden." });
 
-        // Get title via noembed
-        let title = "YouTube Rezept";
+        // Extract title from URL params if available, otherwise use videoId
+        let title = "YouTube Rezept (Video-ID: " + videoId + ")";
+        // Try to get title from noembed
         try {
           const oe = await fetch("https://noembed.com/embed?url=https://www.youtube.com/watch?v=" + videoId);
-          const oed = await oe.json();
-          if (oed.title) title = oed.title;
-        } catch(e) {}
-
-        // Get description from YouTube page
-        let description = "";
-        try {
-          const pageRes = await fetch("https://www.youtube.com/watch?v=" + videoId, {
-            headers: { "User-Agent": "Mozilla/5.0 (compatible; RecipeBot/1.0)" }
-          });
-          const html = await pageRes.text();
-          const dm = html.match(/"description":\{"simpleText":"((?:[^"\\\\]|\\\\.)*)"/);
-          if (dm) description = dm[1].replace(/\\n/g, "\n").replace(/\\"/g, '"');
-          if (!description) {
-            const mm = html.match(/<meta name="description" content="([^"]+)"/);
-            if (mm) description = mm[1];
+          if (oe.ok) {
+            const oed = await oe.json();
+            if (oed.title) title = oed.title;
           }
         } catch(e) {}
 
-        text = 'YouTube Video: ' + title + '\n\nBeschreibung:\n' + (description || 'Keine Beschreibung verfügbar.\nBitte extrahiere ein Rezept aus dem Videotitel falls möglich.');
+        // Get description - try multiple patterns
+        let description = "";
+        try {
+          const pageRes = await fetch("https://www.youtube.com/watch?v=" + videoId, {
+            headers: {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+              "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
+            }
+          });
+          const html = await pageRes.text();
+
+          // Try multiple patterns
+          const tryPatterns = [
+            /"shortDescription":"((?:[^"\\]|\\.){20,})"/,
+            /"description":\{"simpleText":"((?:[^"\\]|\\.){20,})"/,
+            /<meta name="description" content="([^"]{20,})"/,
+          ];
+
+          for (const pat of tryPatterns) {
+            const m = html.match(pat);
+            if (m && m[1]) {
+              description = m[1]
+                .replace(/\\n/g, "\n")
+                .replace(/\\"/g, '"')
+                .replace(/\\u0026/g, "&")
+                .replace(/\\u003c/g, "<")
+                .replace(/\\u003e/g, ">")
+                .slice(0, 4000);
+              if (description.length > 30) break;
+            }
+          }
+        } catch(e) {}
+
+        if (description && description.length > 30) {
+          text = "YouTube Kochvideo: " + title + "\n\nBeschreibung:\n" + description;
+        } else {
+          text = "YouTube Kochvideo: " + title + "\n\nDie Beschreibung konnte nicht automatisch geladen werden. Erstelle bitte ein typisches Rezept basierend auf dem Videotitel.";
+        }
 
       } else {
         // Regular recipe website
@@ -58,8 +89,6 @@ module.exports = async function handler(req, res) {
           });
           if (!pageRes.ok) return res.status(400).json({ error: "Seite konnte nicht geladen werden (Status " + pageRes.status + ")." });
           const html = await pageRes.text();
-
-          // Extract readable text
           const cleaned = html
             .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
             .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
@@ -70,7 +99,6 @@ module.exports = async function handler(req, res) {
             .replace(/\s+/g, " ")
             .trim()
             .slice(0, 8000);
-
           text = "Rezept von: " + url + "\n\n" + cleaned;
         } catch(e) {
           return res.status(400).json({ error: "Seite konnte nicht geladen werden: " + e.message });
@@ -82,44 +110,39 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: "text, url oder imageBase64 erforderlich" });
     }
 
+    // Eingabelänge begrenzen (verhindert teure Anfragen mit riesigen Texten)
+    if (text) text = truncateInput(text, 15000);
+
     const systemPrompt = `Du bist ein Rezept-Extraktor. Extrahiere aus dem gegebenen Text oder Bild ein Rezept und gib es als JSON zurück.
+
+Auch wenn die Informationen unvollständig sind, erstelle bitte ein möglichst vollständiges Rezept mit realistischen Mengenangaben.
 
 Regeln zur Übersetzung:
 - Übersetze Rezeptname, Beschreibung und Zubereitungsschritte ins Deutsche
-- Zutatenname auf Deutsch, ABER: Behalte internationale/asiatische/exotische Produktnamen im Original wenn es keinen gebräuchlichen deutschen Begriff gibt (z.B. "Dumpling Wrapper", "Gyoza", "Miso", "Tahini", "Sriracha", "Panko", "Tofu", "Edamame", "Nori", "Kimchi", "Mirin", "Dashi", "Chili Crisp")
-- Übersetze nur wenn ein echter, gebräuchlicher deutscher Begriff existiert (z.B. "chicken" → "Hähnchen", "garlic" → "Knoblauch")
-- "green onions" oder "scallions" immer als "Frühlingszwiebeln" übersetzen, NICHT als "grüne Zwiebeln"
-- Diese Begriffe NIEMALS übersetzen: Chili Crisp, Chili Oil, Sriracha, Miso, Tahini, Tofu, Tempeh, Edamame, Kimchi, Mirin, Dashi, Panko, Nori, Gyoza, Dumpling, Wonton
+- Zutatenname auf Deutsch, ABER: Behalte internationale Produktnamen im Original (Chili Crisp, Miso, Tahini, Tofu, Sriracha, Panko, Dumpling, Kimchi, Mirin usw.)
+- "green onions" oder "scallions" → "Frühlingszwiebeln"
+- Diese Begriffe NIEMALS übersetzen: Chili Crisp, Sriracha, Miso, Tahini, Tofu, Kimchi, Mirin, Dashi, Panko, Nori, Gyoza, Dumpling, Wonton
 
 Regeln für Einheiten:
 - Einheiten im Feld "unit" müssen exakt eines dieser Werte sein: g, kg, ml, l, EL, TL, Tasse, Stk, Scheibe, Prise, Zehe (oder leer lassen)
-- Feste Lebensmittel (Gemüse, Fleisch, Käse, Nüsse usw.) immer in g, NIEMALS in ml
-- Frühlingszwiebeln, Zwiebeln, Schalotten und jedes andere Gemüse immer in g
-- 1 cup gehackte Frühlingszwiebeln ≈ 100g, 1 cup gehackte Zwiebeln ≈ 160g
+- Feste Lebensmittel immer in g, NIEMALS in ml
 - Flüssigkeiten in ml oder EL/TL
-- Stückweise Zutaten → unit="Stk" oder unit="Zehe"
-- Zutaten ohne Mengenangabe ("zum Servieren", "nach Geschmack"): amount="" und unit=""
-- Adjektive wie "fein gehackt", "dünn geschnitten" gehören in den Zubereitungsschritt, nicht in den Zutatennamen
+- Zutaten ohne Menge ("zum Servieren"): amount="" und unit=""
 
 Maßeinheiten umrechnen:
 - cups Flüssigkeit → ml (1 cup = 240ml)
-- cups Feststoffe → g (Mehl ≈ 120g, Zucker ≈ 200g, Reis ≈ 185g)
-- oz → g (1 oz = 28g), lbs → g (1 lb = 454g)
-- fl oz → ml, tsp → TL, tbsp → EL
+- cups Feststoffe → g (Mehl ≈ 120g, Zucker ≈ 200g)
+- oz → g (28g), lbs → g (454g), tsp → TL, tbsp → EL
 - °F → °C nur in Zubereitungsschritten
 
-Antworte NUR mit validem JSON, ohne Markdown-Backticks:
+Antworte NUR mit validem JSON ohne Backticks:
 {
   "name": "Rezeptname auf Deutsch",
   "description": "Kurze Beschreibung",
   "servings": "4",
   "prepTime": "30 min",
-  "ingredients": [
-    { "amount": "200", "unit": "g", "name": "Zutatname" }
-  ],
-  "steps": [
-    { "text": "Zubereitungsschritt" }
-  ]
+  "ingredients": [{ "amount": "200", "unit": "g", "name": "Zutatname" }],
+  "steps": [{ "text": "Zubereitungsschritt" }]
 }`;
 
     const userContent = [];
@@ -127,7 +150,7 @@ Antworte NUR mit validem JSON, ohne Markdown-Backticks:
       userContent.push({ type: "image", source: { type: "base64", media_type: imageType || "image/jpeg", data: imageBase64 } });
       userContent.push({ type: "text", text: "Extrahiere das Rezept aus diesem Bild." });
     } else {
-      userContent.push({ type: "text", text: "Extrahiere das Rezept aus folgendem Text:\n\n" + text });
+      userContent.push({ type: "text", text: "Extrahiere das Rezept:\n\n" + text });
     }
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -151,11 +174,24 @@ Antworte NUR mit validem JSON, ohne Markdown-Backticks:
     }
 
     const data = await response.json();
-    const raw = data.content[0].text.trim().replace(/^```json?\s*/i, "").replace(/```\s*$/i, "").trim();
+    const raw = data.content[0].text.trim()
+      .replace(/^```json?\s*/i, "")
+      .replace(/```\s*$/i, "")
+      .trim();
 
     let recipe;
-    try { recipe = JSON.parse(raw); }
-    catch(e) { return res.status(500).json({ error: "Rezept konnte nicht geparst werden." }); }
+    try {
+      recipe = JSON.parse(raw);
+    } catch(e) {
+      // Try to find JSON within the text
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try { recipe = JSON.parse(jsonMatch[0]); }
+        catch(e2) { return res.status(500).json({ error: "Rezept konnte nicht geparst werden: " + raw.slice(0, 300) }); }
+      } else {
+        return res.status(500).json({ error: "Rezept konnte nicht geparst werden: " + raw.slice(0, 300) });
+      }
+    }
 
     const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
     recipe.ingredients = (recipe.ingredients || []).map(i => Object.assign({ id: uid() }, i));
