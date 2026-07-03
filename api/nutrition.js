@@ -1,3 +1,5 @@
+const { checkRateLimit, truncateInput } = require('./_rateLimit');
+
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -7,6 +9,11 @@ module.exports = async function handler(req, res) {
 
   const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
   if (!ANTHROPIC_KEY) return res.status(500).json({ error: "API-Key nicht konfiguriert." });
+
+  // Rate limiting: uid muss vom Frontend mitgeschickt werden
+  const uid = req.body?.uid;
+  const rl = await checkRateLimit(uid);
+  if (!rl.allowed) return res.status(429).json({ error: rl.error });
 
   try {
     const { ingredients, servings } = req.body;
