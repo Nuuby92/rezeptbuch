@@ -52,7 +52,7 @@ ${ingList}
 Das Rezept ergibt ${baseServings} Portion(en).
 
 Wichtige Hinweise:
-- Berücksichtige den Zubereitungskontext: z.B. wird bei "1 Liter Öl zum Frittieren" nur ein kleiner Bruchteil (ca. 5-10%) tatsächlich vom Essen aufgenommen, nicht die gesamte Menge
+- Fett/Öl NUR dann reduziert anrechnen, wenn es echtes Frittieren in einem großen Ölbad ist, bei dem der Großteil des Öls im Topf zurückbleibt und weggeschüttet wird (z.B. "1 Liter Öl zum Frittieren" -> nur ca. 5-10% aufgenommen). In ALLEN anderen Fällen wird Öl und Butter VOLLSTÄNDIG mitgezählt: Pfannen-/Bratöl, Öl zum Anbraten/Sautieren, Dressings, Marinaden, Öl über dem Gericht, Backofen-Öl usw. landen komplett im Essen. Eine normale Menge Pfannenöl (z.B. 60 ml) also zu 100% anrechnen, nicht abziehen.
 - Berücksichtige offensichtliche Tippfehler in Zutatennamen (z.B. "Resissirup" = "Reissirup")
 - Verwende realistische, übliche Nährwerte für die jeweiligen Zutaten (rohe Zutaten, sofern nicht anders angegeben)
 - Rechne alle Mengenangaben korrekt um (TL, EL, Tasse, Stk, Zehe usw.)
