@@ -961,11 +961,11 @@ async function exportToBring(email,password,token,uuid) {
   if(btn) btn.disabled=true;
   if(statusEl){statusEl.textContent="Exportiere\u2026";statusEl.className="bring-status";}
   try {
-    var body={items:S.bringItems};
+    var body={items:S.bringItems, uid:(S.user&&S.user.uid)};
     if(token&&uuid){body.token=token;body.uuid=uuid;}
     if(email) body.email=email;
     if(password) body.password=password;
-    var res=await fetch("/api/bring",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    var res=await apiPost("/api/bring", body);
     var data=await res.json();
     if(res.status===401&&data.error==="token_expired"){
       localStorage.removeItem("bring_token");localStorage.removeItem("bring_uuid");
@@ -2552,18 +2552,49 @@ window.onPhotoDrop = function(e) {
   var file = e.dataTransfer.files[0];
   if (file) loadPhotoFile(file);
 };
+// Verkleinert/komprimiert ein Bild per Canvas, damit das Rezept-Dokument unter
+// dem Firestore-Limit von 1 MB bleibt (Fotos werden als base64 im Dokument gespeichert).
+function compressImageDataUrl(dataUrl, cb) {
+  var img = new Image();
+  img.onload = function() {
+    var maxDim = 1200;
+    var w = img.width, h = img.height;
+    if (w > maxDim || h > maxDim) {
+      if (w >= h) { h = Math.round(h * maxDim / w); w = maxDim; }
+      else { w = Math.round(w * maxDim / h); h = maxDim; }
+    }
+    var canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+    var quality = 0.82;
+    var out = canvas.toDataURL("image/jpeg", quality);
+    // Ziel: unter ~900 KB, damit neben dem Bild noch Platz für die restlichen Rezeptdaten bleibt
+    while (out.length > 900000 && quality > 0.4) {
+      quality -= 0.12;
+      out = canvas.toDataURL("image/jpeg", quality);
+    }
+    cb(out.length > 900000 ? null : out);
+  };
+  img.onerror = function() { cb(null); };
+  img.src = dataUrl;
+}
+
 function loadPhotoFile(file) {
-  if (file.size > 5 * 1024 * 1024) { toast("Foto darf maximal 5MB groß sein."); return; }
+  if (!file.type || file.type.indexOf("image/") !== 0) { toast("Bitte eine Bilddatei auswählen."); return; }
+  if (file.size > 15 * 1024 * 1024) { toast("Foto darf maximal 15MB groß sein."); return; }
   var reader = new FileReader();
   reader.onload = function(e) {
-    _pendingPhotoBase64 = e.target.result;
-    _photoRemoved = false;
-    var img = document.getElementById("photo-preview");
-    var wrap = document.getElementById("photo-preview-wrap");
-    var drop = document.getElementById("photo-drop");
-    if (img) img.src = _pendingPhotoBase64;
-    if (wrap) wrap.style.display = "";
-    if (drop) drop.style.display = "none";
+    compressImageDataUrl(e.target.result, function(compressed) {
+      if (!compressed) { toast("Foto konnte nicht verarbeitet werden – bitte ein kleineres Bild wählen."); return; }
+      _pendingPhotoBase64 = compressed;
+      _photoRemoved = false;
+      var img = document.getElementById("photo-preview");
+      var wrap = document.getElementById("photo-preview-wrap");
+      var drop = document.getElementById("photo-drop");
+      if (img) img.src = _pendingPhotoBase64;
+      if (wrap) wrap.style.display = "";
+      if (drop) drop.style.display = "none";
+    });
   };
   reader.readAsDataURL(file);
 }
@@ -2603,7 +2634,12 @@ window.doSave=async function(existingId){
       }
     }
   } catch(e) { /* Nährwerte konnten nicht berechnet werden, Rezept trotzdem speichern */ }
-  await fbSaveRecipe(recipe);
+  try {
+    await fbSaveRecipe(recipe);
+  } catch(e) {
+    toast("Rezept konnte nicht gespeichert werden: " + (e && e.message ? e.message : "Unbekannter Fehler"));
+    return;
+  }
   var changed=false;
   DAYS.forEach(function(day){
     if(!S.weekPlan[day])return;

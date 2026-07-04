@@ -1,3 +1,8 @@
+const { checkRateLimit } = require('./rateLimit');
+const { verifyAppCheckToken } = require('./appCheck');
+
+const MAX_BRING_ITEMS = 200; // Deckelt die Anzahl ausgehender Requests an Bring
+
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -6,10 +11,21 @@ module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Nur POST erlaubt" });
 
+  // Rate limiting: uid muss vom Frontend mitgeschickt werden
+  const uid = req.body?.uid;
+  const rl = await checkRateLimit(uid);
+  if (!rl.allowed) return res.status(429).json({ error: rl.error });
+
+  // App Check: verhindert dass dieser Endpunkt als offener Login-Proxy zu Bring missbraucht wird
+  const appCheckToken = req.headers["x-firebase-appcheck"];
+  const isValidAppCheck = await verifyAppCheckToken(appCheckToken);
+  if (!isValidAppCheck) return res.status(403).json({ error: "Zugriff verweigert (App Check fehlgeschlagen)." });
+
   try {
     const { email, password, token, uuid, items } = req.body;
 
-    if (!items) return res.status(400).json({ error: "items erforderlich" });
+    if (!items || !Array.isArray(items)) return res.status(400).json({ error: "items erforderlich" });
+    if (items.length > MAX_BRING_ITEMS) return res.status(400).json({ error: "Zu viele Artikel (max. " + MAX_BRING_ITEMS + ")." });
 
     let accessToken = token;
     let userUuid = uuid;
