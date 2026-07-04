@@ -618,21 +618,6 @@ document.addEventListener("click", function(e) {
 window.confirmLogout = function() {
   if (confirm("Wirklich abmelden?")) window.doLogout();
 };
-window.toggleUserMenu = function() {
-  var dd = document.getElementById("user-dropdown");
-  if (dd) dd.classList.toggle("open");
-};
-// Close dropdown when clicking outside
-document.addEventListener("click", function(e) {
-  var dd = document.getElementById("user-dropdown");
-  var btn = document.getElementById("user-avatar-btn");
-  if (dd && btn && !dd.contains(e.target) && e.target !== btn) {
-    dd.classList.remove("open");
-  }
-});
-window.confirmLogout = function() {
-  if (confirm("Wirklich abmelden?")) window.doLogout();
-};
 window.doLogout = async function() {
   if (unsubRecipes) { unsubRecipes(); unsubRecipes = null; }
   await signOut(auth);
@@ -802,6 +787,8 @@ var I = {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function esc(s) { return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+// Nur echte Bild-Data-URLs ins src-Attribut lassen (Rezepte sind für alle sichtbar - verhindert Attribut-Injection über fremde photo-Werte)
+function safePhotoSrc(p) { return (typeof p==="string" && /^data:image\//.test(p)) ? p : ""; }
 function toast(msg) { var t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); setTimeout(function(){t.classList.remove("show");},2400); }
 function dlTxt(name, txt) { var b=new Blob([txt],{type:"text/plain;charset=utf-8"}); var u=URL.createObjectURL(b); var a=document.createElement("a"); a.href=u; a.download=name; a.click(); URL.revokeObjectURL(u); }
 function fmtIng(i) { return [i.amount, i.unit, i.name].filter(Boolean).join(" "); }
@@ -1164,7 +1151,8 @@ function wcResultHtml() {
 
   if (S.wcCurrentRecipe) {
     var rec = S.wcCurrentRecipe;
-    var thumb = rec.photo ? '<img src="'+rec.photo+'" style="width:100%;max-height:200px;object-fit:cover;border-radius:12px;margin-bottom:16px" />' : '';
+    var _rps = safePhotoSrc(rec.photo);
+    var thumb = _rps ? '<img src="'+_rps+'" style="width:100%;max-height:200px;object-fit:cover;border-radius:12px;margin-bottom:16px" />' : '';
     return '<div class="card" style="padding:28px">'
       + thumb
       + '<h3 style="font-family:\'Plus Jakarta Sans\',sans-serif;font-size:22px;font-weight:800;margin-bottom:6px">'+esc(rec.name)+'</h3>'
@@ -1922,7 +1910,8 @@ function tplList(){
     list.forEach(function(r){
       var ings=(r.ingredients||[]).filter(function(i){return i.name;}).length;
       var owner=isOwner(r);
-      var thumb = r.photo ? '<img src="'+r.photo+'" style="width:64px;height:64px;border-radius:10px;object-fit:cover;flex-shrink:0" />' : '';
+      var _rps = safePhotoSrc(r.photo);
+      var thumb = _rps ? '<img src="'+_rps+'" style="width:64px;height:64px;border-radius:10px;object-fit:cover;flex-shrink:0" />' : '';
       var rStats = ratingStats(r);
       cards+='<div class="card recipe-card" onclick="doView(\''+r.id+'\')"><div class="recipe-card-top">'
         +thumb
@@ -1998,7 +1987,8 @@ function tplDetail(){
       btn.onclick = function(){ window.triggerSub(btn); };
     });
   },50);
-  var photoHtml = r.photo ? '<img src="'+r.photo+'" style="width:100%;max-height:340px;object-fit:cover;border-radius:14px;margin-bottom:20px" />' : '';
+  var _dps = safePhotoSrc(r.photo);
+  var photoHtml = _dps ? '<img src="'+_dps+'" style="width:100%;max-height:340px;object-fit:cover;border-radius:14px;margin-bottom:20px" />' : '';
   return '<button class="btn btn-ghost btn-sm" onclick="doBack()" style="margin-bottom:20px">'+svg(I.back)+' Zur&uuml;ck</button>'
     +'<div class="card detail-card">'
     +photoHtml
@@ -2319,11 +2309,6 @@ var MEAL_TAG_MAP = {
   "Abendessen":  ["Hauptgericht","Suppe/Eintopf","Pasta/Nudeln","Reis/Getreide","Curry","Pfannengericht","Pizza"],
 };
 
-var _weekSuggestions = [];
-
-
-window.filterModal = function(q){ renderModalList(q); };
-
 function renderModalList(q) {
   var el = document.getElementById("modal-list");
   if (!el) return;
@@ -2612,7 +2597,6 @@ window.doSave=async function(existingId){
   if(!name){alert("Bitte einen Rezeptnamen eingeben.");return;}
   var ings=[];document.querySelectorAll("[data-ing]").forEach(function(row){ings.push({id:row.dataset.ing,amount:row.querySelector('[data-f="amount"]').value.trim(),unit:row.querySelector('[data-f="unit"]').value,name:row.querySelector('[data-f="name"]').value.trim()});});
   var steps=[];document.querySelectorAll("[data-step]").forEach(function(row){steps.push({id:row.dataset.step,text:row.querySelector('[data-f="text"]').value.trim()});});
-  var existing=existingId?S.recipes.find(function(r){return r.id===existingId;}):null;
   var existing = existingId ? S.recipes.find(function(r){return r.id===existingId;}) : null;
   var existingTags = existing ? (existing.tags||[]) : [];
   var photo = _photoRemoved ? null : (_pendingPhotoBase64 || (existing && existing.photo ? existing.photo : null));
@@ -2729,7 +2713,7 @@ var KNOWN_INGREDIENT_STEMS = [
   "salz","pfeffer","zucker","honig","essig","öl","senf","sojasauce","curry","kreuzkümmel",
   "zimt","basilikum","petersilie","koriander","thymian","rosmarin","oregano","dill","minze","lorbeer",
   "muskat","kardamom","vanille","mandel","walnuss","cashew","erdnuss","pinienkern","sesam",
-  "brühe","wein","tomatenmark","sahne","kreme"
+  "brühe","wein","tomatenmark","creme"
 ];
 
 // Gruppen von Zutaten-Oberbegriffen und konkreten Sorten, die sich nicht per

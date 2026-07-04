@@ -98,6 +98,8 @@ Antworte NUR mit einem JSON-Array der passenden Tags, z.B.:
       }),
     });
 
+    if (!response.ok) return res.status(200).json({ tags: [] });
+
     const data = await response.json();
     const raw = data.content[0].text.trim().replace(/^```json?\s*/i,"").replace(/```\s*$/i,"").trim();
 

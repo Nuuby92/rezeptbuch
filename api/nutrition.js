@@ -37,7 +37,6 @@ module.exports = async function handler(req, res) {
         total: { kcal: 0, protein: 0, carbs: 0, fat: 0 },
         perServing: { kcal: 0, protein: 0, carbs: 0, fat: 0 },
         servings: baseServings,
-        notFound: [],
       });
     }
 
@@ -122,7 +121,6 @@ Alle Werte als Zahlen (nicht als String), kcal als ganze Zahl, andere mit einer 
       },
       perServing,
       servings: baseServings,
-      notFound: [],
     });
 
   } catch(e) {

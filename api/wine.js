@@ -72,6 +72,11 @@ Antworte NUR mit validem JSON ohne Backticks:
       }),
     });
 
+    if (!response.ok) {
+      const err = await response.text();
+      return res.status(500).json({ error: "Claude API Fehler: " + err.slice(0, 200) });
+    }
+
     const data = await response.json();
     const raw = data.content[0].text.trim().replace(/^```json?\s*/i,"").replace(/```\s*$/i,"").trim();
 

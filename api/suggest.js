@@ -48,6 +48,8 @@ module.exports = async function handler(req, res) {
       })
     });
 
+    if (!response.ok) return res.status(200).json({ suggestions: [] });
+
     const data = await response.json();
     const raw = data.content[0].text.trim().replace(/^```json?\s*/i,"").replace(/```\s*$/i,"").trim();
 
