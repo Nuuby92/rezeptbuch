@@ -2696,8 +2696,38 @@ var KNOWN_INGREDIENT_STEMS = [
   "brühe","wein","tomatenmark","sahne","kreme"
 ];
 
+// Gruppen von Zutaten-Oberbegriffen und konkreten Sorten, die sich nicht per
+// Substring erkennen lassen (z.B. "Pilze" im Rezepttext vs. "Pfifferlinge" in
+// der Zutatenliste, oder "Speisestärke" vs. "Kartoffelstärke").
+var INGREDIENT_SYNONYM_GROUPS = [
+  ["pilz","pilze","champignon","champignons","pfifferling","pfifferlinge","steinpilz","steinpilze","austernpilz","austernpilze","shiitake","egerling","egerlinge","morchel","morcheln","kräuterseitling","kräuterseitlinge","trompetenpilz","trompetenpilze"],
+  ["stärke","speisestärke","kartoffelstärke","maisstärke","maizena"],
+  ["zwiebel","zwiebeln","schalotte","schalotten"],
+  ["käse","gouda","emmentaler","cheddar","mozzarella","parmesan","feta","bergkäse","gruyère","raclette"],
+  ["chili","chilischote","chilischoten","chiliflocken","peperoni","jalapeno","jalapeño","jalapenos"],
+  ["essig","balsamico","weinessig","apfelessig","reisessig"],
+  ["öl","olivenöl","sonnenblumenöl","rapsöl","sesamöl","kokosöl","erdnussöl"],
+  ["reis","basmatireis","jasminreis","risottoreis","milchreis"],
+  ["paprika","paprikaschote","paprikaschoten","spitzpaprika","gemüsepaprika"],
+  ["zucker","rohrzucker","puderzucker","vanillezucker","kokosblütenzucker"],
+  ["salz","meersalz","fleursdesel","speisesalz"],
+  ["brühe","fond","brühwürfel","gemüsebrühe","hühnerbrühe","rinderbrühe","gemüsefond"],
+  ["sahne","schlagsahne","kochsahne","crèmefraiche","cremefraiche","schmand"],
+  ["senf","dijonsenf","mittelscharfersenf"],
+  ["nudel","nudeln","spaghetti","penne","fusilli","tagliatelle","linguine","farfalle"]
+];
+
+function sameSynonymGroup(word1, word2) {
+  return INGREDIENT_SYNONYM_GROUPS.some(function(group){
+    var match1 = group.some(function(g){ return word1.indexOf(g)===0 || g.indexOf(word1)===0; });
+    var match2 = group.some(function(g){ return word2.indexOf(g)===0 || g.indexOf(word2)===0; });
+    return match1 && match2;
+  });
+}
+
 // Erkennt ob ein Zutatenname im Text erwähnt wird - auch bei zusammengesetzten
-// Namen wie "Cherrytomaten" vs. Text "Tomaten" (in beide Richtungen geprüft).
+// Namen wie "Cherrytomaten" vs. Text "Tomaten" (in beide Richtungen geprüft),
+// und bei Oberbegriff/Sorte-Paaren wie "Pilze" vs. "Pfifferlinge" (siehe oben).
 function textMentionsIngredient(text, ingredientName) {
   var lowerText = text.toLowerCase();
   var nameLower = ingredientName.toLowerCase();
@@ -2705,7 +2735,7 @@ function textMentionsIngredient(text, ingredientName) {
   var nameWords = nameLower.match(/[a-zäöüß]{4,}/g) || [nameLower];
   var textWords = lowerText.match(/[a-zäöüß]{4,}/g) || [];
   return nameWords.some(function(nw){
-    return textWords.some(function(tw){ return nw.indexOf(tw) !== -1 || tw.indexOf(nw) !== -1; });
+    return textWords.some(function(tw){ return nw.indexOf(tw) !== -1 || tw.indexOf(nw) !== -1 || sameSynonymGroup(nw, tw); });
   });
 }
 
@@ -2717,7 +2747,7 @@ function findMissingIngredientMentions(stepsText, ingredientNames) {
     var lw = w.toLowerCase();
     var stem = KNOWN_INGREDIENT_STEMS.find(function(s){ return lw.indexOf(s) === 0; });
     if (!stem || seen[stem]) return;
-    var covered = lowerNames.some(function(n){ return n.indexOf(stem) !== -1; });
+    var covered = lowerNames.some(function(n){ return n.indexOf(stem) !== -1 || sameSynonymGroup(n, stem); });
     if (!covered) { seen[stem] = true; missing.push(w); }
   });
   return missing;
