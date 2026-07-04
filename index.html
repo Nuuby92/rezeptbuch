@@ -81,6 +81,16 @@
     .recipe-meta span { font-size:12px; color:var(--text-3); display:flex; align-items:center; gap:4px; }
     .recipe-author { font-size:11px; color:var(--text-3); margin-top:5px; font-style:italic; }
     .card-actions { display:flex; gap:4px; flex-shrink:0; align-items:center; }
+    .star-rating { position:relative; display:inline-block; font-size:14px; line-height:1; white-space:nowrap; }
+    .star-rating .star-row { white-space:nowrap; }
+    .star-row-bg { color:var(--border-2); }
+    .star-row-fg { position:absolute; top:0; left:0; overflow:hidden; color:#F59E0B; }
+    .star-rating-count { font-size:12px; color:var(--text-3); margin-left:5px; }
+    .star-rating-empty { font-size:12px; color:var(--text-3); font-style:italic; }
+    .star-picker { display:flex; gap:4px; font-size:26px; line-height:1; }
+    .star-pick { cursor:pointer; color:var(--border-2); transition:color .15s,transform .1s; }
+    .star-pick:hover { transform:scale(1.15); }
+    .star-pick.filled { color:#F59E0B; }
     .search-wrap { position:relative; margin-bottom:16px; }
     .search-icon { position:absolute; left:13px; top:50%; transform:translateY(-50%); pointer-events:none; color:var(--text-3); }
     .search-input { width:100%; border:1.5px solid var(--border); border-radius:var(--radius-md); padding:11px 14px 11px 40px; font-size:14px; background:var(--surface); font-family:inherit; color:var(--text); }
@@ -727,6 +737,48 @@ function isOwner(recipe) {
   if (!recipe.createdBy) return true; // Legacy recipes without owner
   return recipe.createdBy === S.user.uid;
 }
+
+// ── Bewertungen ──────────────────────────────────────────────────────────────
+function ratingStats(recipe) {
+  var ratings = (recipe && recipe.ratings) || {};
+  var values = Object.keys(ratings).map(function(k){ return ratings[k]; }).filter(function(v){ return v>=1 && v<=5; });
+  var count = values.length;
+  var avg = count ? values.reduce(function(a,b){return a+b;},0)/count : 0;
+  var mine = (S.user && ratings[S.user.uid]) || 0;
+  return { avg: avg, count: count, mine: mine };
+}
+
+function starsDisplayHtml(avg, count) {
+  if (!count) return '<span class="star-rating-empty">Noch keine Bewertung</span>';
+  var pct = Math.max(0, Math.min(100, (avg/5)*100));
+  return '<span class="star-rating" title="'+avg.toFixed(1)+' von 5 Sternen">'
+    +'<span class="star-row star-row-bg">&#9733;&#9733;&#9733;&#9733;&#9733;</span>'
+    +'<span class="star-row star-row-fg" style="width:'+pct+'%">&#9733;&#9733;&#9733;&#9733;&#9733;</span>'
+    +'</span><span class="star-rating-count">'+avg.toFixed(1)+' ('+count+')</span>';
+}
+
+function starPickerHtml(recipeId, mine) {
+  var stars = '';
+  for (var i=1; i<=5; i++) {
+    stars += '<span class="star-pick'+(i<=mine?' filled':'')+'" onclick="rateRecipe(\''+recipeId+'\','+i+')">&#9733;</span>';
+  }
+  return '<div class="star-picker">'+stars+'</div>';
+}
+
+window.rateRecipe = async function(recipeId, stars) {
+  if (!S.user) return;
+  var uid = S.user.uid;
+  var r = S.recipes.find(function(x){ return x.id === recipeId; });
+  if (!r) return;
+  r.ratings = r.ratings || {};
+  r.ratings[uid] = stars;
+  renderOnly();
+  try {
+    var patch = { ratings: {} };
+    patch.ratings[uid] = stars;
+    await setDoc(doc(db, "recipes", recipeId), patch, { merge: true });
+  } catch(e) { toast("Bewertung konnte nicht gespeichert werden"); }
+};
 
 // ── Icons ──────────────────────────────────────────────────────────────────
 function svg(path, size) {
@@ -1871,10 +1923,12 @@ function tplList(){
       var ings=(r.ingredients||[]).filter(function(i){return i.name;}).length;
       var owner=isOwner(r);
       var thumb = r.photo ? '<img src="'+r.photo+'" style="width:64px;height:64px;border-radius:10px;object-fit:cover;flex-shrink:0" />' : '';
+      var rStats = ratingStats(r);
       cards+='<div class="card recipe-card" onclick="doView(\''+r.id+'\')"><div class="recipe-card-top">'
         +thumb
         +'<div class="recipe-card-body">'
         +'<div class="recipe-name">'+esc(r.name)+'</div>'
+        +(rStats.count?'<div style="margin-bottom:4px">'+starsDisplayHtml(rStats.avg,rStats.count)+'</div>':"")
         +(r.description?'<div class="recipe-desc">'+esc(r.description)+'</div>':"")
         +'<div class="recipe-meta">'
         +(r.servings?'<span>'+svg(I.users,12)+' '+esc(r.servings)+' Portionen</span>':"")
@@ -1909,6 +1963,7 @@ function tplList(){
 
 function tplDetail(){
   var r=S.viewing; if(!r) return "";
+  var rStats = ratingStats(r);
   var ings=sortIngredientsForDisplay((r.ingredients||[]).filter(function(i){return i.name;}));
   var steps=(r.steps||[]).filter(function(s){return s.text;});
   var basePortions = parseInt(r.servings)||1;
@@ -1948,6 +2003,12 @@ function tplDetail(){
     +'<div class="card detail-card">'
     +photoHtml
     +'<h1 class="detail-title">'+esc(r.name)+'</h1>'
+    +'<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:12px">'
+    +starsDisplayHtml(rStats.avg, rStats.count)
+    +'<div style="display:flex;align-items:center;gap:8px">'
+    +'<span style="font-size:12px;color:var(--text-muted)">Deine Bewertung:</span>'
+    +starPickerHtml(r.id, rStats.mine)
+    +'</div></div>'
     +(r.description?'<p class="detail-desc">'+esc(r.description)+'</p>':"")
     +'<div class="detail-meta">'
     +(r.prepTime?'<span>'+svg(I.clock,16)+' '+esc(r.prepTime)+'</span>':"")
