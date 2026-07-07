@@ -2108,7 +2108,7 @@ window.doSave=async function(existingId){
   var existingTags = existing ? (existing.tags||[]) : [];
   var photo = _photoRemoved ? null : (_pendingPhotoBase64 || (existing && existing.photo ? existing.photo : null));
   var recipe={id:existingId||null,name:name,description:document.getElementById("f-desc").value.trim(),servings:document.getElementById("f-srv").value,prepTime:document.getElementById("f-time").value.trim(),ingredients:ings,steps:steps,tags:existingTags,photo:photo};
-  if(existing){recipe.createdBy=existing.createdBy;recipe.createdByName=existing.createdByName;}
+  if(existing){recipe.createdBy=existing.createdBy;recipe.createdByName=existing.createdByName;if(existing.ratings)recipe.ratings=existing.ratings;if(existing.createdAt)recipe.createdAt=existing.createdAt;}
   // Auto-categorize if no tags yet
   if (!recipe.tags || recipe.tags.length === 0) {
     var tags = await autoCategorizRecipe(recipe);
@@ -2351,14 +2351,17 @@ window.cookStartTimer = function(seconds) {
       clearInterval(CM.timerInterval); CM.timerInterval = null;
       playBeep();
     }
-    renderCookMode();
+    renderCookTimerSlot();
   }, 1000);
-  renderCookMode();
+  renderCookTimerSlot();
+  // Timer in den sichtbaren Bereich holen (bei langem Rezepttext sonst außerhalb)
+  var slot = document.getElementById("cook-timer-slot");
+  if (slot && slot.scrollIntoView) slot.scrollIntoView({ behavior: "smooth", block: "center" });
 };
 window.cookPauseTimer = function() {
   if (CM.timerInterval) { clearInterval(CM.timerInterval); CM.timerInterval = null; }
   CM.timerRunning = false;
-  renderCookMode();
+  renderCookTimerSlot();
 };
 window.cookResumeTimer = function() {
   if (CM.timerLeft <= 0) return;
@@ -2370,11 +2373,39 @@ window.cookResumeTimer = function() {
       clearInterval(CM.timerInterval); CM.timerInterval = null;
       playBeep();
     }
-    renderCookMode();
+    renderCookTimerSlot();
   }, 1000);
-  renderCookMode();
+  renderCookTimerSlot();
 };
-window.cookResetTimer = function() { cookResetTimerState(); renderCookMode(); };
+window.cookResetTimer = function() { cookResetTimerState(); renderCookTimerSlot(); };
+
+// Baut nur den Timer-Bereich. Wird bei jedem Timer-Tick genutzt, damit NICHT der
+// ganze Kochmodus (inkl. Scroll-Container .cook-body) neu gerendert wird - sonst
+// springt die Ansicht auf dem Handy jede Sekunde nach oben.
+function buildCookTimerHtml() {
+  var step = CM.steps[CM.stepIndex];
+  if (CM.timerRunning || CM.timerLeft > 0 || CM.timerDone) {
+    return '<div class="cook-timer'+(CM.timerRunning?' running':'')+(CM.timerDone?' done':'')+'">'
+      +'<div class="cook-timer-display">'+(CM.timerDone?"Fertig! ⏰":formatClock(CM.timerLeft))+'</div>'
+      +'<div style="display:flex;gap:8px">'
+      +(CM.timerDone ? '<button class="btn btn-secondary btn-sm" onclick="cookResetTimer()">Timer zurücksetzen</button>'
+        : CM.timerRunning ? '<button class="btn btn-secondary btn-sm" onclick="cookPauseTimer()">Pause</button>'
+        : '<button class="btn btn-secondary btn-sm" onclick="cookResumeTimer()">Weiter</button>')
+      +(CM.timerDone ? '' : '<button class="btn btn-ghost btn-sm" onclick="cookResetTimer()">Abbrechen</button>')
+      +'</div></div>';
+  }
+  var dur = parseStepDuration(step.text);
+  return '<div class="cook-timer">'
+    +(dur ? '<button class="btn btn-primary btn-sm" onclick="cookStartTimer('+dur+')">'+svg(I.clock,15)+' Timer '+formatDuration(dur)+' starten</button>' : '')
+    +'<div class="cook-timer-presets">'
+    +[1,5,10,15].map(function(m){return '<button class="btn btn-ghost btn-sm" onclick="cookStartTimer('+(m*60)+')">'+m+' Min</button>';}).join("")
+    +'</div></div>';
+}
+
+function renderCookTimerSlot() {
+  var slot = document.getElementById("cook-timer-slot");
+  if (slot) slot.innerHTML = buildCookTimerHtml();
+}
 
 function renderCookMode() {
   var el = document.getElementById("cook-mode");
@@ -2390,25 +2421,6 @@ function renderCookMode() {
   var isLast = CM.stepIndex === CM.steps.length-1;
   var pct = Math.round(((CM.stepIndex+1)/CM.steps.length)*100);
 
-  var timerHtml;
-  if (CM.timerRunning || CM.timerLeft > 0 || CM.timerDone) {
-    timerHtml = '<div class="cook-timer'+(CM.timerRunning?' running':'')+(CM.timerDone?' done':'')+'">'
-      +'<div class="cook-timer-display">'+(CM.timerDone?"Fertig! ⏰":formatClock(CM.timerLeft))+'</div>'
-      +'<div style="display:flex;gap:8px">'
-      +(CM.timerDone ? '<button class="btn btn-secondary btn-sm" onclick="cookResetTimer()">Timer zurücksetzen</button>'
-        : CM.timerRunning ? '<button class="btn btn-secondary btn-sm" onclick="cookPauseTimer()">Pause</button>'
-        : '<button class="btn btn-secondary btn-sm" onclick="cookResumeTimer()">Weiter</button>')
-      +(CM.timerDone ? '' : '<button class="btn btn-ghost btn-sm" onclick="cookResetTimer()">Abbrechen</button>')
-      +'</div></div>';
-  } else {
-    var dur = parseStepDuration(step.text);
-    timerHtml = '<div class="cook-timer">'
-      +(dur ? '<button class="btn btn-primary btn-sm" onclick="cookStartTimer('+dur+')">'+svg(I.clock,15)+' Timer '+formatDuration(dur)+' starten</button>' : '')
-      +'<div class="cook-timer-presets">'
-      +[1,5,10,15].map(function(m){return '<button class="btn btn-ghost btn-sm" onclick="cookStartTimer('+(m*60)+')">'+m+' Min</button>';}).join("")
-      +'</div></div>';
-  }
-
   el.innerHTML =
     '<div class="cook-hd">'
       +'<button class="btn btn-ghost btn-icon" onclick="exitCookMode()" title="Kochmodus verlassen">'+svg(I.x)+'</button>'
@@ -2419,7 +2431,7 @@ function renderCookMode() {
       +'<div class="cook-recipe-name">'+esc(CM.recipeName)+'</div>'
       +'<div class="cook-step-text">'+esc(step.text)+'</div>'
       +(chips?'<div class="cook-ings">'+chips+'</div>':'')
-      +timerHtml
+      +'<div id="cook-timer-slot">'+buildCookTimerHtml()+'</div>'
     +'</div>'
     +'<div class="cook-ftr">'
       +(CM.stepIndex>0?'<button class="btn btn-secondary" onclick="cookPrev()">'+svg(I.back)+' Zurück</button>':'')
