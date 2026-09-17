@@ -121,6 +121,40 @@
   </div>
 </div>
 
+<!-- YAZIO modal -->
+<div class="modal-overlay" id="yazio-modal" onclick="onYazioModalBgClick(event)">
+  <div class="modal-box">
+    <div class="modal-hd">
+      <h3>&#128202; Nach YAZIO &uuml;bertragen</h3>
+      <button class="btn btn-ghost btn-icon" onclick="closeYazioModal()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="bring-info" id="yazio-login-info">&#128274; Dein Passwort wird <strong>nicht gespeichert</strong>. Nach der ersten Anmeldung liegt nur ein Token in diesem Browser &ndash; nicht in der Datenbank und nicht auf dem Server.</div>
+    <div class="bring-fields" id="yazio-login-fields">
+      <div class="field"><label>YAZIO E-Mail</label><input class="inp" id="yazio-email" type="email" placeholder="deine@email.de" /></div>
+      <div class="field"><label>YAZIO Passwort</label><input class="inp" id="yazio-pw" type="password" /><span class="bring-saved" id="yazio-saved-hint"></span></div>
+    </div>
+    <div class="bring-fields">
+      <div class="field"><label>Mahlzeit</label>
+        <select class="inp" id="yazio-daytime">
+          <option value="breakfast">Fr&uuml;hst&uuml;ck</option>
+          <option value="lunch" selected>Mittagessen</option>
+          <option value="dinner">Abendessen</option>
+          <option value="snack">Snack</option>
+        </select>
+      </div>
+      <div class="field"><label>Datum</label><input class="inp" id="yazio-date" type="date" /></div>
+      <div class="field"><label>Portionen</label><input class="inp" id="yazio-portions" type="number" min="1" max="20" step="1" value="1" /></div>
+    </div>
+    <div class="bring-status" id="yazio-status"></div>
+    <div class="bring-footer">
+      <button class="btn btn-secondary" onclick="closeYazioModal()">Abbrechen</button>
+      <button class="btn btn-primary" id="yazio-submit-btn" onclick="submitYazio()">&#128202; &Uuml;bertragen</button>
+    </div>
+  </div>
+</div>
+
 <!-- Substitute modal -->
 <div class="modal-overlay" id="sub-modal" onclick="onSubModalBgClick(event)">
   <div class="modal-box" style="max-width:480px">

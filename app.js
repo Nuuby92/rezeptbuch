@@ -488,6 +488,145 @@ window.submitBring=async function(){
   await exportToBring(email,pw,null,null);
 };
 
+// ── YAZIO ──────────────────────────────────────────────────────────────────
+// Die Zugangsdaten bleiben auf dem Gerät der jeweiligen Person: Nach der
+// Anmeldung liegen nur die Tokens im localStorage. Weder Firestore noch der
+// Server speichern etwas davon -- siehe api/yazio.js.
+//
+// Die YAZIO-Rezept-ID gehört dagegen pro Nutzer in Firestore. Rezepte sind
+// bei uns geteilt, YAZIO-Konten nicht: eine gemeinsame ID würde bei allen
+// außer dem Ersteller ins Leere zeigen.
+var _yazioIds = null; // Zuordnung Rezept-ID -> YAZIO-Rezept-ID, pro Nutzer
+
+async function loadYazioIds() {
+  if (_yazioIds) return _yazioIds;
+  _yazioIds = {};
+  if (!S.user) return _yazioIds;
+  try {
+    var d = await getDoc(doc(db, "users", S.user.uid, "yazio", "recipes"));
+    if (d.exists() && d.data().map) _yazioIds = d.data().map;
+  } catch(e) { /* ohne Zuordnung wird eben ein neues YAZIO-Rezept angelegt */ }
+  return _yazioIds;
+}
+
+async function saveYazioId(recipeId, yazioRecipeId) {
+  _yazioIds = _yazioIds || {};
+  _yazioIds[recipeId] = yazioRecipeId;
+  if (!S.user) return;
+  try {
+    await setDoc(doc(db, "users", S.user.uid, "yazio", "recipes"), { map: _yazioIds });
+  } catch(e) { /* nicht schlimm: dann entsteht beim nächsten Mal ein neues Rezept */ }
+}
+
+function yazioHasSession() { return !!localStorage.getItem("yazio_refresh"); }
+
+function showYazioLogin(show, hint) {
+  document.getElementById("yazio-login-fields").style.display = show ? "" : "none";
+  document.getElementById("yazio-login-info").style.display = show ? "" : "none";
+  document.getElementById("yazio-saved-hint").textContent = hint || "";
+}
+
+window.openYazioModal = async function() {
+  var r = S.viewing; if (!r) return;
+  if (!r.nutrition || !r.nutrition.total) {
+    toast("Erst Nährwerte berechnen – YAZIO braucht sie.");
+    return;
+  }
+  await loadYazioIds();
+
+  var today = new Date();
+  var pad = function(n){ return String(n).padStart(2,"0"); };
+  document.getElementById("yazio-date").value =
+    today.getFullYear()+"-"+pad(today.getMonth()+1)+"-"+pad(today.getDate());
+  document.getElementById("yazio-portions").value = S.scaledPortions || parseInt(r.servings) || 1;
+  document.getElementById("yazio-email").value = localStorage.getItem("yazio_email") || "";
+  document.getElementById("yazio-pw").value = "";
+  document.getElementById("yazio-status").textContent = "";
+  document.getElementById("yazio-status").className = "bring-status";
+  showYazioLogin(!yazioHasSession(), "");
+  document.getElementById("yazio-modal").classList.add("open");
+};
+window.closeYazioModal = function(){ document.getElementById("yazio-modal").classList.remove("open"); };
+window.onYazioModalBgClick = function(e){ if(e.target===document.getElementById("yazio-modal")) window.closeYazioModal(); };
+
+window.submitYazio = async function() {
+  var r = S.viewing; if (!r) return;
+  var statusEl = document.getElementById("yazio-status");
+  var btn = document.getElementById("yazio-submit-btn");
+  var setStatus = function(msg, cls){ statusEl.textContent=msg; statusEl.className="bring-status"+(cls?" "+cls:""); };
+
+  var email = document.getElementById("yazio-email").value.trim();
+  var pw = document.getElementById("yazio-pw").value;
+  var needsLogin = !yazioHasSession();
+  if (needsLogin && (!email || !pw)) { setStatus("Bitte E-Mail und Passwort eingeben.","err"); return; }
+
+  var portions = parseInt(document.getElementById("yazio-portions").value) || 1;
+
+  btn.disabled = true;
+  setStatus("Übertrage…");
+
+  // Nährwerte pro Portion -- genau so erwartet YAZIO sie.
+  var baseServings = (r.nutrition && r.nutrition.baseServings) || parseInt(r.servings) || 1;
+  var total = r.nutrition.total;
+  var perServing = {
+    kcal: total.kcal / baseServings,
+    protein: total.protein / baseServings,
+    carbs: total.carbs / baseServings,
+    fat: total.fat / baseServings,
+  };
+
+  var body = {
+    uid: S.user && S.user.uid,
+    recipe: {
+      name: r.name,
+      servings: parseInt(r.servings) || 1,
+      ingredients: (r.ingredients||[]).map(function(i){ return {name:i.name, amount:i.amount, unit:i.unit}; }),
+      steps: (r.steps||[]).map(function(s){ return s.text; }),
+      perServing: perServing,
+    },
+    yazioRecipeId: (_yazioIds||{})[r.id] || null,
+    daytime: document.getElementById("yazio-daytime").value,
+    date: document.getElementById("yazio-date").value,
+    portionCount: portions,
+  };
+  if (email && pw) { body.email = email; body.password = pw; }
+  var refresh = localStorage.getItem("yazio_refresh");
+  var access = localStorage.getItem("yazio_access");
+  if (refresh) body.refreshToken = refresh;
+  if (access) body.accessToken = access;
+
+  try {
+    var res = await apiPost("/api/yazio", body);
+    var data = await res.json();
+
+    if (res.status === 401 && data.error === "token_expired") {
+      localStorage.removeItem("yazio_access");
+      localStorage.removeItem("yazio_refresh");
+      showYazioLogin(true, "Sitzung abgelaufen – bitte erneut anmelden.");
+      setStatus("Bitte erneut anmelden.","err");
+      btn.disabled = false;
+      return;
+    }
+    if (!res.ok) { setStatus(data.error || "Fehler.","err"); btn.disabled = false; return; }
+
+    if (data.auth) {
+      if (data.auth.access_token) localStorage.setItem("yazio_access", data.auth.access_token);
+      if (data.auth.refresh_token) localStorage.setItem("yazio_refresh", data.auth.refresh_token);
+    }
+    if (email) localStorage.setItem("yazio_email", email);
+    document.getElementById("yazio-pw").value = "";
+
+    if (data.yazioRecipeId) await saveYazioId(r.id, data.yazioRecipeId);
+
+    btn.disabled = false;
+    toast("✓ " + portions + " Portion" + (portions>1?"en":"") + " in YAZIO eingetragen");
+    window.closeYazioModal();
+  } catch(e) {
+    setStatus("Fehler: " + e.message, "err");
+    btn.disabled = false;
+  }
+};
+
 // ── Import ─────────────────────────────────────────────────────────────────
 var importImageBase64=null, importImageType=null, importTab="text";
 window.openImportModal=function(){
@@ -1535,6 +1674,7 @@ function tplDetail(){
     +'<button class="btn btn-secondary" onclick="doCopyDetail()">'+svg(I.copy)+' Kopieren</button>'
     +'<button class="btn btn-secondary" onclick="doDlDetail()">'+svg(I.dl)+' Als .txt</button>'
     +'<button class="btn btn-bring" onclick="openBringModal('+esc(bringItems)+')">&#127819; Nach Bring</button>'
+    +'<button class="btn btn-secondary" onclick="openYazioModal()">&#128202; Nach YAZIO</button>'
     +'<button class="btn btn-secondary" onclick="doDetailToWeek()">'+svg(I.cal)+' Zum Wochenplan</button>'
     +'</div>'
     +'<div class="wine-box" style="margin-bottom:16px"><div id="wine-box"><button class="btn" style="background:var(--surface-2);color:var(--text-2);border:1.5px solid var(--border)" onclick="loadWineRecommendation()">&#127863; Weinempfehlung anzeigen</button></div></div>'
