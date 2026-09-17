@@ -411,8 +411,8 @@ function renderNutritionBox() { var el=document.getElementById("nutrition-box");
 function nutritionBoxHtml() {
   if (S.nutritionLoading) return '<div class="nutrition-loading"><div class="spinner spinner-sm"></div> N&auml;hrwerte werden berechnet&hellip;</div>';
   if (!S.nutrition) return "";
+  var ownerView = S.viewing && isOwner(S.viewing);
   if (S.nutrition.error) {
-    var ownerView = S.viewing && isOwner(S.viewing);
     return '<p style="font-size:13px;color:var(--text-muted);font-style:italic">' + esc(S.nutrition.error) + '</p>'
       + (ownerView ? '<button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="recalcNutritionNow()">&#128202; Jetzt berechnen</button>' : '');
   }
@@ -428,7 +428,8 @@ function nutritionBoxHtml() {
     +'<div class="nutrition-stat"><div class="nutrition-stat-val">'+n.carbs+'</div><div class="nutrition-stat-unit">g</div><div class="nutrition-stat-label">Kohlenhydrate</div></div>'
     +'<div class="nutrition-stat"><div class="nutrition-stat-val">'+n.fat+'</div><div class="nutrition-stat-unit">g</div><div class="nutrition-stat-label">Fett</div></div>'
     +'</div>'
-    +'<p class="nutrition-hint">&#9432; Richtwerte &bull; '+(S.nutritionTab==="portion"?"pro Portion":"gesamt ("+S.nutrition.servings+" Portionen)")+'</p>';
+    +'<p class="nutrition-hint">&#9432; Richtwerte &bull; '+(S.nutritionTab==="portion"?"pro Portion":"gesamt ("+S.nutrition.servings+" Portionen)")+'</p>'
+    +(ownerView ? '<button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="recalcNutritionNow()">&#128202; Neu berechnen</button>' : '');
 }
 window.setNutritionTab = function(tab) { S.nutritionTab=tab; renderNutritionBox(); };
 
