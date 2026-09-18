@@ -493,30 +493,10 @@ window.submitBring=async function(){
 // Anmeldung liegen nur die Tokens im localStorage. Weder Firestore noch der
 // Server speichern etwas davon -- siehe api/yazio.js.
 //
-// Die YAZIO-Rezept-ID gehört dagegen pro Nutzer in Firestore. Rezepte sind
-// bei uns geteilt, YAZIO-Konten nicht: eine gemeinsame ID würde bei allen
-// außer dem Ersteller ins Leere zeigen.
-var _yazioIds = null; // Zuordnung Rezept-ID -> YAZIO-Rezept-ID, pro Nutzer
-
-async function loadYazioIds() {
-  if (_yazioIds) return _yazioIds;
-  _yazioIds = {};
-  if (!S.user) return _yazioIds;
-  try {
-    var d = await getDoc(doc(db, "users", S.user.uid, "yazio", "recipes"));
-    if (d.exists() && d.data().map) _yazioIds = d.data().map;
-  } catch(e) { /* ohne Zuordnung wird eben ein neues YAZIO-Rezept angelegt */ }
-  return _yazioIds;
-}
-
-async function saveYazioId(recipeId, yazioRecipeId) {
-  _yazioIds = _yazioIds || {};
-  _yazioIds[recipeId] = yazioRecipeId;
-  if (!S.user) return;
-  try {
-    await setDoc(doc(db, "users", S.user.uid, "yazio", "recipes"), { map: _yazioIds });
-  } catch(e) { /* nicht schlimm: dann entsteht beim nächsten Mal ein neues Rezept */ }
-}
+// Eingetragen wird als freier Tagebuch-Eintrag aus Name und Nährwerten.
+// Der Weg über ein YAZIO-Rezept war eine Sackgasse: ohne product_id an
+// jeder Zutat zeigt die App den Eintrag zwar in der Tagessumme, macht ihn
+// aber weder auf- noch löschbar.
 
 function yazioHasSession() { return !!localStorage.getItem("yazio_refresh"); }
 
@@ -532,8 +512,6 @@ window.openYazioModal = async function() {
     toast("Erst Nährwerte berechnen – YAZIO braucht sie.");
     return;
   }
-  await loadYazioIds();
-
   var today = new Date();
   var pad = function(n){ return String(n).padStart(2,"0"); };
   document.getElementById("yazio-date").value =
@@ -577,14 +555,8 @@ window.submitYazio = async function() {
 
   var body = {
     uid: S.user && S.user.uid,
-    recipe: {
-      name: r.name,
-      servings: parseInt(r.servings) || 1,
-      ingredients: (r.ingredients||[]).map(function(i){ return {name:i.name, amount:i.amount, unit:i.unit}; }),
-      steps: (r.steps||[]).map(function(s){ return s.text; }),
-      perServing: perServing,
-    },
-    yazioRecipeId: (_yazioIds||{})[r.id] || null,
+    name: r.name,
+    perServing: perServing,
     daytime: document.getElementById("yazio-daytime").value,
     date: document.getElementById("yazio-date").value,
     portionCount: portions,
@@ -615,8 +587,6 @@ window.submitYazio = async function() {
     }
     if (email) localStorage.setItem("yazio_email", email);
     document.getElementById("yazio-pw").value = "";
-
-    if (data.yazioRecipeId) await saveYazioId(r.id, data.yazioRecipeId);
 
     btn.disabled = false;
     toast("✓ " + portions + " Portion" + (portions>1?"en":"") + " in YAZIO eingetragen");
